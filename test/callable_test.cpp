@@ -1,12 +1,6 @@
 #include <boost/test/unit_test.hpp>
 
-#include "general.hpp"
-
-#include "scheduler.hpp"
-#include "coroutine.hpp"
-
-using coroutine = libto::Coroutine;
-using scheduler = libto::Scheduler;
+#include "libto.hpp"
 
 BOOST_AUTO_TEST_SUITE(callable_test)
 
@@ -56,7 +50,8 @@ BOOST_AUTO_TEST_CASE(test1)
         std::cout << "reuse coroutine object!" << endl;
     });
 
-    scheduler::getInstance().RunTask();
+    
+    RunUntilNoTask;
 
 
     return;

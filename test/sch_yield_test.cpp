@@ -1,4 +1,8 @@
+#include <boost/test/unit_test.hpp>
+
 #include "libto.hpp"
+
+BOOST_AUTO_TEST_SUITE(sch_yield_test)
 
 void echo()
 {
@@ -29,7 +33,8 @@ void echo2()
 }
 
 
-int main(int argc, char* argv[])
+
+BOOST_AUTO_TEST_CASE(test1)
 {
 	coroutine c;
     c.bind_proc(echo);
@@ -40,5 +45,9 @@ int main(int argc, char* argv[])
 
     RunUntilNoTask;
 
-    return 0;
+
+    return;
 }
+
+
+BOOST_AUTO_TEST_SUITE_END()

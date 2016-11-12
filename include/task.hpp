@@ -33,13 +33,20 @@ public:
         return context_.swapOut();
     }
 
+    inline bool isFinished(){
+        return !func_;
+    }
+
     ~Task() { 
         BOOST_LOG_T(info) << "Terminated Coroutine with task_id: " << t_id_ << std::endl;
     }
+
+public:
+    const uint64_t t_id_;
+
 private:
     static uint64_t task_uuid;
 
-    uint64_t t_id_;
     TaskFunc func_;
     Context  context_;
 };
