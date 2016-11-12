@@ -16,5 +16,6 @@ using scheduler = libto::Scheduler;
 
 #define RunTask          do{ libto::Scheduler::getInstance().RunTask(); } while(0);
 #define RunUntilNoTask   do{ libto::Scheduler::getInstance().RunUntilNoTask(); } while(0);
+#define JoinAllThreads   do{ libto::Scheduler::getInstance().joinAllThreads(); } while(0);
 
 #endif // _LIBTO_HPP_

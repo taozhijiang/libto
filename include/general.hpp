@@ -12,11 +12,8 @@ using std::string;
 using std::int64_t;
 using std::uint64_t;
 
-#include <boost/shared_ptr.hpp>
-#include <boost/make_shared.hpp>
-#include <boost/weak_ptr.hpp>
+#include <memory>
 
-#include <boost/bind.hpp>
 #include <boost/log/trivial.hpp>
 
 namespace libto {

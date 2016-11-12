@@ -32,13 +32,13 @@ void echo2()
 int main(int argc, char* argv[])
 {
 	coroutine c;
-    c.bind_proc(echo);
+    c.bind_proc(echo, 1);
 
     coroutine c2;
-    c2.bind_proc(echo2);
+    c2.bind_proc(echo2, 1);
 
 
-    RunUntilNoTask;
+    JoinAllThreads;
 
     return 0;
 }

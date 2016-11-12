@@ -17,6 +17,12 @@ public:
     {
         Scheduler::getInstance().CreateTask(arg);
     }
+
+    template <typename Arg>
+    void bind_proc(Arg const& arg, std::size_t dispatch)
+    {
+        Scheduler::getInstance().CreateTask(arg, dispatch);
+    }
 };
 
 }

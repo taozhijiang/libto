@@ -4,14 +4,27 @@
 #include "general.hpp"
 #include "context.hpp"
 
+#include <deque>
+
 namespace libto {
 
+class Task;
 using TaskFunc = std::function<void()>;
+using Task_Ptr = std::shared_ptr<Task>;
+
+enum class TaskStat
+{
+    TASK_INITIALIZE,
+    TASK_RUNNING,
+    TASK_BLOCKING, 
+    TASK_STOPPED,
+};
 
 class Task {
 public:
     Task(TaskFunc const& fn):
     t_id_(task_uuid++),
+    task_stat_(TaskStat::TASK_INITIALIZE),
     func_(fn),
     context_([this] {Task_Callback();})
     {
@@ -25,16 +38,24 @@ public:
         func_ = TaskFunc(); // destruct std::func object
     }
 
-    inline bool swapIn() {
+    bool swapIn() {
         return context_.swapIn();
     }
 
-    inline bool swapOut() {
+    bool swapOut() {
         return context_.swapOut();
     }
 
-    inline bool isFinished(){
+    bool isFinished(){
         return !func_;
+    }
+
+    void setTaskStat(TaskStat stat) {
+        task_stat_ = stat;
+    }
+
+    TaskStat getTaskStat() {
+        return task_stat_;
     }
 
     ~Task() { 
@@ -47,11 +68,35 @@ public:
 private:
     static uint64_t task_uuid;
 
-    TaskFunc func_;
-    Context  context_;
+    TaskStat  task_stat_;
+    TaskFunc  func_;
+    Context   context_;
 };
 
-using Task_Ptr = boost::shared_ptr<Task>;
+
+class TaskOperation {
+public:
+    TaskOperation():
+    task_list_(),current_task_(nullptr) {}
+
+    Task_Ptr GetCurrentTask() const
+    {
+        return current_task_;
+    }
+
+   virtual bool do_run_one() = 0;
+   virtual std::size_t RunUntilNoTask() = 0;
+   virtual std::size_t RunTask() = 0;
+
+   virtual ~TaskOperation() = default;
+
+protected:
+    std::deque<Task_Ptr> task_list_;
+    Task_Ptr current_task_;
+
+    static Task_Ptr null_task_;
+};
+
 
 }
 
