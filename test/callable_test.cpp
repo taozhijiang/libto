@@ -1,3 +1,5 @@
+#include <boost/test/unit_test.hpp>
+
 #include "general.hpp"
 
 #include "scheduler.hpp"
@@ -5,6 +7,8 @@
 
 using coroutine = libto::Coroutine;
 using scheduler = libto::Scheduler;
+
+BOOST_AUTO_TEST_SUITE(callable_test)
 
 void echo()
 {
@@ -16,7 +20,7 @@ void echo3(const string msg)
     BOOST_LOG_T(info) << "std::bind echo output with: " << msg << endl;
 }
 
-int main(int argc, char* argv[])
+BOOST_AUTO_TEST_CASE(test1)
 {
 	coroutine c;
     c.bind_proc(echo);
@@ -31,5 +35,8 @@ int main(int argc, char* argv[])
 
     scheduler::getInstance().RunTask();
 
-    return 0;
+    return;
 }
+
+
+BOOST_AUTO_TEST_SUITE_END()
