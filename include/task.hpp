@@ -5,6 +5,8 @@
 #include "context.hpp"
 
 #include <deque>
+#include <map>
+#include <vector>
 
 namespace libto {
 
@@ -16,7 +18,7 @@ enum class TaskStat
 {
     TASK_INITIALIZE,
     TASK_RUNNING,
-    TASK_BLOCKING, 
+    TASK_BLOCKING,
     TASK_STOPPED,
 };
 
@@ -58,7 +60,7 @@ public:
         return task_stat_;
     }
 
-    ~Task() { 
+    ~Task() {
         BOOST_LOG_T(info) << "Terminated Coroutine with task_id: " << t_id_ << std::endl;
     }
 
@@ -93,6 +95,11 @@ public:
 protected:
     std::deque<Task_Ptr> task_list_;
     Task_Ptr current_task_;
+
+    // IO 等待的列表，socket/fd
+    std::map<int, Task_Ptr>  blocking_list_;
+    // 空闲的Task对象缓存队列
+    std::vector<Task_Ptr> task_obj_cache_;
 
     static Task_Ptr null_task_;
 };

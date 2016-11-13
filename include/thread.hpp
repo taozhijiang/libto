@@ -7,11 +7,19 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/thread/thread.hpp>
 #include <boost/thread/condition_variable.hpp>
+#include <signal.h>
 
 namespace libto {
 
 class Thread : public boost::noncopyable, public TaskOperation {
 public:
+    Thread()
+    {
+        sigignore(SIGPIPE);
+
+        BOOST_LOG_T(debug) << "New Thread: " << boost::this_thread::get_id() << endl;
+    }
+
     void CreateTask(TaskFunc const& func)
     {
         Task_Ptr p_task( new Task(func));
@@ -58,10 +66,9 @@ public:
 
     std::size_t RunTask() override
     {
-        BOOST_LOG_T(debug) << "RunTask Thread: " << boost::this_thread::get_id() << endl;
-
         std::size_t n = 0;
         bool ret = false;
+
         for (;;) {
             if( (ret = do_run_one()) )
                 ++ n;
@@ -81,10 +88,9 @@ public:
 
     std::size_t RunUntilNoTask() override
     {
-        BOOST_LOG_T(debug) << "RunUntilNoTask Thread: " << boost::this_thread::get_id() << endl;
-
         std::size_t n = 0;
         bool ret = false;
+
         for (;;) {
             if( (ret = do_run_one()) )
                 ++ n;
@@ -103,7 +109,7 @@ public:
         BOOST_LOG_T(info) << "Boost Thread Exit... " << endl;
     }
 
-public:
+private:
     boost::mutex  task_mutex_;
     boost::condition_variable_any  task_notify_;
 };

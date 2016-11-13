@@ -9,5 +9,16 @@ namespace libto {
 
     Task_Ptr TaskOperation::null_task_;
 
+
+    int st_make_nonblock(int socket)
+    {
+        int flags = 0;
+
+        flags = fcntl (socket, F_GETFL, 0);
+    	flags |= O_NONBLOCK;
+        fcntl (socket, F_SETFL, flags);
+
+        return 0;
+    }
 }
 

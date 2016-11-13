@@ -36,13 +36,13 @@ public:
     {
         if ( (dispatch + 1) > thread_list_.size() )
             thread_list_.resize(dispatch + 1);
-        
+
         if (!thread_list_[dispatch])
         {
             Thread_Ptr th = std::make_shared<Thread>();
             thread_group_.create_thread(boost::bind(&Thread::RunTask, th));
             thread_list_[dispatch] = th;
-            BOOST_LOG_T(info) << "Create Thread index: " << dispatch << endl;
+            BOOST_LOG_T(debug) << "Create Thread Index: " << dispatch << endl;
         }
 
         thread_list_[dispatch]->CreateTask(func);
@@ -102,7 +102,7 @@ public:
             if (task_list_.empty())
                break;
         }
-        
+
         BOOST_LOG_T(info) << "Already run " << n << " serivces... " << endl;
         return n;
     }

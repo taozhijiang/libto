@@ -26,6 +26,8 @@ extern char *basename(char *path);
 #endif
 
 
+int st_make_nonblock(int socket);
+
 }
 
 
