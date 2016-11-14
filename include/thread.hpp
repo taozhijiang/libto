@@ -115,8 +115,8 @@ public:
     std::size_t RunTask() override
     {
         std::size_t total = 0;
-        std::size_t n = 0;
         bool real_do = false;
+        Task_Ptr p_task;
 
         // ATTENTION !!!
         // VERY IMPORTANT !!!!
@@ -125,15 +125,7 @@ public:
         BOOST_LOG_T(log) << "Worker Thread RunTask() ..." << endl;
 
         for (;;) {
-            n = 0;
             real_do = false;
-
-            while (n++ < 20) {
-                if ( do_run_one()){
-                    ++ total;
-                    real_do = true;
-                }
-            }
 
             {
                 boost::unique_lock<boost::mutex> task_lock(task_mutex_);
@@ -141,17 +133,29 @@ public:
                     task_notify_.wait(task_lock);
                 }
             }
+
+            p_task = task_list_.front();
+            do {
+                if (do_run_one()) {
+                    ++ total;
+                    real_do = true;
+                }
+            } while (p_task != task_list_.front());
+
+            if (!real_do) {
+                usleep(50*1024);
+            }
         }
 
-        BOOST_LOG_T(info) << "Already run " << n << " serivces... " << endl;
-        return n;
+        BOOST_LOG_T(info) << "Already run " << total << " serivces... " << endl;
+        return total;
     }
 
     std::size_t RunUntilNoTask() override
     {
         std::size_t total = 0;
-        std::size_t n = 0;
         bool real_do = false;
+        Task_Ptr p_task;
 
         // ATTENTION !!!
         // VERY IMPORTANT !!!!
@@ -159,7 +163,6 @@ public:
         BOOST_LOG_T(log) << "Worker Thread RunUntilNoTask() ..." << endl;
 
         for (;;) {
-            n = 0;
             real_do = false;
 
             {
@@ -168,16 +171,21 @@ public:
                    break;
             }
 
-            while (n++ < 20) {
-                if ( do_run_one()){
+            p_task = task_list_.front();
+            do {
+                if (do_run_one()) {
                     ++ total;
                     real_do = true;
                 }
+            } while ( p_task != task_list_.front() );
+
+            if (!real_do) {
+                usleep(50*1024);
             }
         }
 
-        BOOST_LOG_T(info) << "Already run " << n << " serivces... " << endl;
-        return n;
+        BOOST_LOG_T(info) << "Already run " << total << " serivces... " << endl;
+        return total;
     }
 
     // will be called by main thread, watch out for mutex protect

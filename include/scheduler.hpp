@@ -111,6 +111,7 @@ public:
         std::size_t n = 0;
         bool real_do = false;
         std::vector<int> fd_coll;
+        Task_Ptr p_task;
 
         BOOST_LOG_T(log) << "Main Thread RunTask() ..." << endl;
 
@@ -118,11 +119,17 @@ public:
             n = 0;           //切换协程次数
             real_do = false; //是否实际处理事件
 
-            while (n++ < 20) {
-                if (do_run_one()){
-                    ++ total;
-                    real_do = true;
-                }
+            // 有empty()这种情况发生，此时主线程主要做工作线程的
+            // 事件侦听的操作
+            if (!task_list_.empty())
+            {
+                p_task = task_list_.front();
+                do {
+                    if (do_run_one()){
+                        ++ total;
+                        real_do = true;
+                    }
+                } while ( (n++ < 20) && (p_task != task_list_.front()));
             }
 
             // Main Thread Check
@@ -154,6 +161,7 @@ public:
         std::size_t n = 0;
         bool real_do = false;
         std::vector<int> fd_coll;
+        Task_Ptr p_task;
 
         BOOST_LOG_T(log) << "Main Thread RunUntilNoTask() ..." << endl;
 
@@ -169,12 +177,13 @@ public:
             if (task_list_.empty())
                break;
 
-            while (n++ < 20) {
-                if ( do_run_one()){
+            p_task = task_list_.front();
+            do {
+                if (do_run_one()){
                     ++ total;
                     real_do = true;
                 }
-            }
+            } while ( (n++ < 20) && (p_task != task_list_.front()));
 
             // Main Thread Check
             traverseTaskEvents(fd_coll, 0);
