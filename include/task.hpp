@@ -11,8 +11,12 @@
 namespace libto {
 
 class Task;
+class TaskOperation;
 using TaskFunc = std::function<void()>;
 using Task_Ptr = std::shared_ptr<Task>;
+using Task_Weak = std::weak_ptr<Task>;
+
+class Thread;
 
 enum class TaskStat
 {
@@ -23,12 +27,15 @@ enum class TaskStat
 };
 
 class Task {
+    friend class TaskOperation;
+
 public:
-    Task(TaskFunc const& fn):
+    Task(TaskFunc const& fn, Thread* p_thread):
     t_id_(task_uuid++),
     task_stat_(TaskStat::TASK_INITIALIZE),
     func_(fn),
-    context_([this] {Task_Callback();})
+    context_([this] {Task_Callback();}),
+    p_thread_(p_thread)
     {
         BOOST_LOG_T(info) << "Created Coroutine with task_id: " << t_id_ << std::endl;
     }
@@ -73,6 +80,7 @@ private:
     TaskStat  task_stat_;
     TaskFunc  func_;
     Context   context_;
+    Thread*   p_thread_;
 };
 
 
@@ -86,18 +94,35 @@ public:
         return current_task_;
     }
 
-   virtual bool do_run_one() = 0;
-   virtual std::size_t RunUntilNoTask() = 0;
-   virtual std::size_t RunTask() = 0;
+    bool InCoroutine() const {
+        return !!current_task_;
+    }
 
-   virtual ~TaskOperation() = default;
+    // 主线程中会返回nullptr
+    Thread* GetCurrentThead() const
+    {
+        if (!current_task_)
+            return nullptr;
+
+        return current_task_->p_thread_;
+    }
+
+    virtual bool do_run_one() = 0;
+    virtual std::size_t RunUntilNoTask() = 0;
+    virtual std::size_t RunTask() = 0;
+
+    // ms = -1, forever
+    virtual std::size_t traverseTaskEvents(std::vector<int>& fd_coll, int ms=0) = 0;
+
+    virtual ~TaskOperation() = default;
 
 protected:
     std::deque<Task_Ptr> task_list_;
     Task_Ptr current_task_;
 
     // IO 等待的列表，socket/fd
-    std::map<int, Task_Ptr>  blocking_list_;
+    std::map<int, Task_Weak> task_blocking_list_;
+
     // 空闲的Task对象缓存队列
     std::vector<Task_Ptr> task_obj_cache_;
 

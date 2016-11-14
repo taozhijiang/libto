@@ -9,11 +9,19 @@
 #include <boost/thread/condition_variable.hpp>
 #include <signal.h>
 
+#include "epoll.hpp"
+
 namespace libto {
 
-class Thread : public boost::noncopyable, public TaskOperation {
+class Thread : public boost::noncopyable, public TaskOperation, private Epoll {
 public:
-    Thread()
+
+    Thread():
+        Thread(0)
+    {}
+
+    explicit Thread(std::size_t max_event):
+        Epoll(max_event)
     {
         sigignore(SIGPIPE);
 
@@ -22,7 +30,7 @@ public:
 
     void CreateTask(TaskFunc const& func)
     {
-        Task_Ptr p_task( new Task(func));
+        Task_Ptr p_task( new Task(func, this));
         p_task->setTaskStat(TaskStat::TASK_RUNNING);
         {
             boost::lock_guard<boost::mutex> task_lock(task_mutex_);
@@ -55,10 +63,8 @@ public:
             BOOST_LOG_T(debug) << "Job is finished with " << ptr->t_id_ << endl;
         }
         else{
-            {
-                boost::lock_guard<boost::mutex> task_lock(task_mutex_);
-                task_list_.push_back(ptr);
-            }
+            boost::lock_guard<boost::mutex> task_lock(task_mutex_);
+            task_list_.push_back(ptr);
         }
 
         return true;
@@ -75,8 +81,7 @@ public:
 
             {
                 boost::unique_lock<boost::mutex> task_lock(task_mutex_);
-                while (task_list_.empty())
-                {
+                while (task_list_.empty()) {
                     task_notify_.wait(task_lock);
                 }
             }
@@ -104,6 +109,33 @@ public:
         BOOST_LOG_T(info) << "Already run " << n << " serivces... " << endl;
         return n;
     }
+
+    std::size_t traverseTaskEvents(std::vector<int>& fd_coll, int ms=0) override
+    {
+        std::size_t ret = 0;
+
+        if(traverseEvent(fd_coll, ms) && !fd_coll.empty())
+        {
+            boost::lock_guard<boost::mutex> task_lock(task_mutex_);
+            for (auto fd: fd_coll){
+                if (auto tk = task_blocking_list_[fd].lock())
+                {
+                    ++ ret;
+                    task_list_.emplace_front(tk);
+                }
+
+                // 目前只以oneshot的方式使用，后续待优化
+                delEvent(fd);
+                task_blocking_list_.erase(fd);
+            }
+
+            if (ret > 0)
+                task_notify_.notify_one();
+        }
+
+        return ret;
+    }
+
 
     virtual ~Thread() {
         BOOST_LOG_T(info) << "Boost Thread Exit... " << endl;

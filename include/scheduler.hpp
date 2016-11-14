@@ -5,6 +5,7 @@
 #include <boost/noncopyable.hpp>
 #include "task.hpp"
 #include "thread.hpp"
+#include "epoll.hpp"
 
 #include <boost/thread.hpp>
 
@@ -12,7 +13,7 @@
 
 namespace libto {
 
-class Scheduler: public boost::noncopyable, public TaskOperation
+class Scheduler: public boost::noncopyable, public TaskOperation, private Epoll
 {
 public:
     static Scheduler& getInstance()
@@ -24,7 +25,7 @@ public:
     // Create coroutine task in main thread
     void CreateTask(TaskFunc const& func)
     {
-        Task_Ptr p_task( new Task(func) );
+        Task_Ptr p_task( new Task(func, nullptr) );
         p_task->setTaskStat(TaskStat::TASK_RUNNING);
         task_list_.push_back(p_task);
 
@@ -79,9 +80,19 @@ public:
     {
         std::size_t n = 0;
         bool ret = false;
+        std::vector<int> fd_coll;
+
         for (;;) {
             if( (ret = do_run_one()) )
                 ++ n;
+
+            traverseTaskEvents(fd_coll);
+
+            for (auto& ithread: thread_list_){
+                if (ithread){
+                    ithread->traverseTaskEvents(fd_coll);
+                }
+            }
 
             if (task_list_.empty())
                 ::sleep(1);
@@ -107,12 +118,39 @@ public:
         return n;
     }
 
+    std::size_t traverseTaskEvents(std::vector<int>& fd_coll, int ms=50) override
+    {
+        std::size_t ret = 0;
+
+        if(traverseEvent(fd_coll, ms) && !fd_coll.empty())
+        {
+            for (auto fd: fd_coll){
+                if (auto tk = task_blocking_list_[fd].lock())
+                {
+                    ++ ret;
+                    task_list_.emplace_front(tk);
+                }
+
+                // 目前只以oneshot的方式使用，后续待优化
+                delEvent(fd);
+                task_blocking_list_.erase(fd);
+            }
+        }
+
+        return ret;
+    }
+
     void joinAllThreads() {
         thread_group_.join_all();
     }
 
 private:
-    Scheduler() = default;
+    Scheduler(): Scheduler(0) {}
+
+    Scheduler(std::size_t max_event):
+        Epoll(max_event)
+    {}
+
     boost::thread_group    thread_group_;
     std::deque<Thread_Ptr> thread_list_; //默认在main thread中执行的协程
 };

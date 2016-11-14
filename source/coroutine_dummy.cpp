@@ -6,9 +6,7 @@
 namespace libto {
 
     uint64_t Task::task_uuid = 0;
-
-    Task_Ptr TaskOperation::null_task_;
-
+    Task_Ptr TaskOperation::null_task_ = nullptr; 
 
     int st_make_nonblock(int socket)
     {

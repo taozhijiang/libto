@@ -6,6 +6,7 @@
 #include "scheduler.hpp"
 #include "coroutine.hpp"
 #include "task.hpp"
+#include "epoll.hpp"
 
 using coroutine = libto::Coroutine;
 using scheduler = libto::Scheduler;
@@ -17,5 +18,11 @@ using scheduler = libto::Scheduler;
 #define RunTask          do{ libto::Scheduler::getInstance().RunTask(); } while(0);
 #define RunUntilNoTask   do{ libto::Scheduler::getInstance().RunUntilNoTask(); } while(0);
 #define JoinAllThreads   do{ libto::Scheduler::getInstance().joinAllThreads(); } while(0);
+
+#define sch_read(fd)  do{ libto::Thread* ptr = GetCurrentThead(); \
+                          if (ptr) ptr->addEvent(fd, EPOLLIN | EPOLLERR); \
+                          else libto::Scheduler::getInstance().addEvent(fd, EPOLLIN | EPOLLERR); } while(0);
+#define sch_write(fd) do{ addEvent(fd, EPOLLOUT |EPOLLERR); } while(0);
+#define sch_rw(fd)    do{ addEvent(fd, EPOLLIN |EPOLLOUT| EPOLLERR); } while(0);
 
 #endif // _LIBTO_HPP_
