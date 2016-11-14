@@ -10,6 +10,7 @@
 #include <boost/thread.hpp>
 
 #include <sys/timerfd.h>
+#include <unistd.h>
 
 #include <vector>
 
@@ -100,40 +101,58 @@ public:
         return true;
     }
 
+    /**
+     * Runtask() 涉及到协程的调度和异步事件的响应，
+     * 所以必须保证高效
+     */
     std::size_t RunTask() override
     {
+        std::size_t total = 0;
         std::size_t n = 0;
-        bool ret = false;
+        bool real_do = false;
         std::vector<int> fd_coll;
 
         BOOST_LOG_T(log) << "Main Thread RunTask() ..." << endl;
 
         for (;;) {
-            if( (ret = do_run_one()) )
-                ++ n;
+            n = 0;           //切换协程次数
+            real_do = false; //是否实际处理事件
+
+            while (n++ < 20) {
+                if (do_run_one()){
+                    ++ total;
+                    real_do = true;
+                }
+            }
 
             // Main Thread Check
-            traverseTaskEvents(fd_coll, 50);
-            ::sleep(1);
+            traverseTaskEvents(fd_coll, 0);
 
             // Other Thread Check
             for (auto& ithread: thread_list_){
                 if (ithread){
                     // immediately
-                    ithread->traverseTaskEvents(fd_coll);
+                   if( ithread->traverseTaskEvents(fd_coll) ){
+                       real_do = true;
+                   }
                 }
+            }
+
+            if (!real_do) {
+                ::usleep(50*1000); //50ms
             }
         }
 
-        BOOST_LOG_T(info) << "Already run " << n << " serivces... " << endl;
-        return n;
+        BOOST_LOG_T(info) << "Already run " << total << " serivces... " << endl;
+        return total;
     }
 
     // RunUntilNoTask() 不会处理其他线程的事件，此处需要注意
     std::size_t RunUntilNoTask() override
     {
+        std::size_t total = 0;
         std::size_t n = 0;
-        bool ret = false;
+        bool real_do = false;
         std::vector<int> fd_coll;
 
         BOOST_LOG_T(log) << "Main Thread RunUntilNoTask() ..." << endl;
@@ -144,17 +163,28 @@ public:
         }
 
         for (;;) {
-            if( (ret = do_run_one()) )
-                ++ n;
-
-            // Main Thread Check
-            traverseTaskEvents(fd_coll, 50);
+            n = 0;           //切换协程次数
+            real_do = false; //是否实际处理事件
 
             if (task_list_.empty())
                break;
+
+            while (n++ < 20) {
+                if ( do_run_one()){
+                    ++ total;
+                    real_do = true;
+                }
+            }
+
+            // Main Thread Check
+            traverseTaskEvents(fd_coll, 0);
+
+            if (!real_do) {
+                ::usleep(50*1000); //50ms
+            }
         }
 
-        BOOST_LOG_T(info) << "Already run " << n << " serivces... " << endl;
+        BOOST_LOG_T(info) << "Already run " << total << " serivces... " << endl;
         return n;
     }
 

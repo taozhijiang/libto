@@ -114,19 +114,27 @@ public:
 
     std::size_t RunTask() override
     {
+        std::size_t total = 0;
         std::size_t n = 0;
-        bool ret = false;
+        bool real_do = false;
 
         // ATTENTION !!!
         // VERY IMPORTANT !!!!
         GetThreadInstance().thread_ = this;
+
         BOOST_LOG_T(log) << "Worker Thread RunTask() ..." << endl;
 
         for (;;) {
-            if( (ret = do_run_one()) )
-                ++ n;
+            n = 0;
+            real_do = false;
 
-::sleep(1);
+            while (n++ < 20) {
+                if ( do_run_one()){
+                    ++ total;
+                    real_do = true;
+                }
+            }
+
             {
                 boost::unique_lock<boost::mutex> task_lock(task_mutex_);
                 while (task_list_.empty()) {
@@ -141,8 +149,9 @@ public:
 
     std::size_t RunUntilNoTask() override
     {
+        std::size_t total = 0;
         std::size_t n = 0;
-        bool ret = false;
+        bool real_do = false;
 
         // ATTENTION !!!
         // VERY IMPORTANT !!!!
@@ -150,12 +159,20 @@ public:
         BOOST_LOG_T(log) << "Worker Thread RunUntilNoTask() ..." << endl;
 
         for (;;) {
-            if( (ret = do_run_one()) )
-                ++ n;
+            n = 0;
+            real_do = false;
+
             {
                 boost::lock_guard<boost::mutex> task_lock(task_mutex_);
                 if (task_list_.empty())
                    break;
+            }
+
+            while (n++ < 20) {
+                if ( do_run_one()){
+                    ++ total;
+                    real_do = true;
+                }
             }
         }
 

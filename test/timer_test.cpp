@@ -30,4 +30,13 @@ BOOST_AUTO_TEST_CASE(test1)
     coroutine c2;
     c2.bind_timer(echo2, 1000, true);
 
-    coroutine c3
+    coroutine c3;
+    c3.bind_timer(echo3, 3000, false);
+
+    RunTask;
+
+    return 0;
+}
+
+
+BOOST_AUTO_TEST_SUITE_END()
