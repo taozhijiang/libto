@@ -9,11 +9,11 @@
 
 #include <boost/thread.hpp>
 
-#include <deque>
+#include <vector>
 
 namespace libto {
 
-class Scheduler: public boost::noncopyable, public TaskOperation, private Epoll
+class Scheduler: public boost::noncopyable, public TaskOperation, public Epoll
 {
 public:
     static Scheduler& getInstance()
@@ -23,17 +23,48 @@ public:
     }
 
     // Create coroutine task in main thread
-    void CreateTask(TaskFunc const& func)
+    void createTask(TaskFunc const& func) override
     {
-        Task_Ptr p_task( new Task(func, nullptr) );
-        p_task->setTaskStat(TaskStat::TASK_RUNNING);
-        task_list_.push_back(p_task);
-
+        Task_Ptr p_task( new Task(func) );
+        addTask(p_task);
         return;
     }
 
+    void addTask(const Task_Ptr& p_task, TaskStat stat = TaskStat::TASK_RUNNING) override {
+        p_task->setTaskStat(stat);
+        task_list_.push_back(p_task);
+        return;
+    }
+
+    void removeTask(const Task_Ptr& p_task) override {
+        task_list_.remove(p_task);
+        return;
+    }
+
+    void blockTask(int fd, const Task_Ptr& p_task) override {
+        p_task->setTaskStat(TaskStat::TASK_BLOCKING);
+        task_blocking_list_[fd] = p_task;
+    }
+
+    void resumeTask(const Task_Ptr& p_task) override {
+        p_task->setTaskStat(TaskStat::TASK_RUNNING); 
+    }
+
+    void removeBlockingFd(int fd) override {
+        task_blocking_list_.erase(fd);
+    }
+
+    Task_Ptr getCurrentTask() const override
+    {
+        return current_task_;
+    }
+
+    bool isInCoroutine() const override {
+        return !!current_task_;
+    }
+
     // dispatch 从0开始的线程索引号
-    void CreateTask(TaskFunc const& func, std::size_t dispatch)
+    void createTask(TaskFunc const& func, std::size_t dispatch)
     {
         if ( (dispatch + 1) > thread_list_.size() )
             thread_list_.resize(dispatch + 1);
@@ -46,7 +77,7 @@ public:
             BOOST_LOG_T(debug) << "Create Thread Index: " << dispatch << endl;
         }
 
-        thread_list_[dispatch]->CreateTask(func);
+        thread_list_[dispatch]->createTask(func);
         return;
     }
 
@@ -59,7 +90,10 @@ public:
             return false;
 
         Task_Ptr ptr = task_list_.front();
-        task_list_.pop_front();
+        if (ptr->getTaskStat() != TaskStat::TASK_RUNNING) 
+            return false;
+
+        task_list_.pop_front(); 
         current_task_ = ptr;
         ptr->swapIn();
 
@@ -86,16 +120,16 @@ public:
             if( (ret = do_run_one()) )
                 ++ n;
 
-            traverseTaskEvents(fd_coll);
+            // Main Thread Check
+            traverseTaskEvents(fd_coll, 50);
 
+            // Other Thread Check
             for (auto& ithread: thread_list_){
                 if (ithread){
                     ithread->traverseTaskEvents(fd_coll);
                 }
             }
 
-            if (task_list_.empty())
-                ::sleep(1);
         }
 
         BOOST_LOG_T(info) << "Already run " << n << " serivces... " << endl;
@@ -106,6 +140,8 @@ public:
     {
         std::size_t n = 0;
         bool ret = false;
+        BOOST_LOG_T(log) << "Main Thread RunUntilNoTask() ..." << endl;
+
         for (;;) {
             if( (ret = do_run_one()) )
                 ++ n;
@@ -128,12 +164,12 @@ public:
                 if (auto tk = task_blocking_list_[fd].lock())
                 {
                     ++ ret;
-                    task_list_.emplace_front(tk);
+                    resumeTask(tk); 
                 }
 
                 // 目前只以oneshot的方式使用，后续待优化
                 delEvent(fd);
-                task_blocking_list_.erase(fd);
+                removeBlockingFd(fd);
             }
         }
 
@@ -145,14 +181,19 @@ public:
     }
 
 private:
-    Scheduler(): Scheduler(0) {}
+    Scheduler(): Scheduler(0)
+    {}
 
     Scheduler(std::size_t max_event):
         Epoll(max_event)
-    {}
+    {
+        current_task_ = nullptr;
+        GetThreadInstance().thread_ = nullptr;
+    }
 
+    Task_Ptr               current_task_;
     boost::thread_group    thread_group_;
-    std::deque<Thread_Ptr> thread_list_; //默认在main thread中执行的协程
+    std::vector<Thread_Ptr> thread_list_; //默认在main thread中执行的协程
 };
 
 }

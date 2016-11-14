@@ -37,6 +37,16 @@ public:
         struct epoll_event event;
         int ret = 0;
 
+        if (event_fd_ == -1 || max_events_ == 0)
+        {
+            max_events_ = 128; // for default
+            events_ = (struct epoll_event*)calloc(max_events_, sizeof(struct epoll_event));
+            assert(events_);
+            memset(events_, 0, max_events_ * sizeof(struct epoll_event));
+            event_fd_ = epoll_create(max_events_);
+            assert(event_fd_ != -1);
+        }
+
         st_make_nonblock(fd);
         event.data.fd = fd;
         event.events = events | EPOLLET; //edge tridge

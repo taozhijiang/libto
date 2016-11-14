@@ -13,7 +13,15 @@
 
 namespace libto {
 
-class Thread : public boost::noncopyable, public TaskOperation, private Epoll {
+// Can be reference by through Scheduler::getThreadInstance
+class Thread;
+struct ThreadLocalInfo
+{
+    Thread *thread_ = nullptr;
+};
+extern ThreadLocalInfo& GetThreadInstance();
+
+class Thread : public boost::noncopyable, public TaskOperation, public Epoll {
 public:
 
     Thread():
@@ -24,20 +32,57 @@ public:
         Epoll(max_event)
     {
         sigignore(SIGPIPE);
-
-        BOOST_LOG_T(debug) << "New Thread: " << boost::this_thread::get_id() << endl;
+        current_task_ = nullptr;
+        GetThreadInstance().thread_ = this;
+        BOOST_LOG_T(debug) << "Create New Thread: " << boost::this_thread::get_id() << endl;
     }
 
-    void CreateTask(TaskFunc const& func)
+    void createTask(TaskFunc const& func) override
     {
-        Task_Ptr p_task( new Task(func, this));
-        p_task->setTaskStat(TaskStat::TASK_RUNNING);
+        Task_Ptr p_task( new Task(func));
+        addTask(p_task);
+        return;
+    }
+
+    void addTask(const Task_Ptr& p_task, TaskStat stat = TaskStat::TASK_RUNNING) override {
         {
             boost::lock_guard<boost::mutex> task_lock(task_mutex_);
+            p_task->setTaskStat(stat);
             task_list_.push_back(p_task);
         }
-        task_notify_.notify_one();
+        if (stat == TaskStat::TASK_RUNNING) 
+            task_notify_.notify_one(); 
         return;
+    }
+
+    void removeTask(const Task_Ptr& p_task) override {
+        boost::lock_guard<boost::mutex> task_lock(task_mutex_);
+        task_list_.remove(p_task);
+        return;
+    }
+
+    void blockTask(int fd, const Task_Ptr& p_task) override {
+        boost::lock_guard<boost::mutex> task_lock(task_mutex_);
+        p_task->setTaskStat(TaskStat::TASK_BLOCKING);
+        task_blocking_list_[fd] = p_task;
+    }
+
+    void resumeTask(const Task_Ptr& p_task) override {
+        boost::lock_guard<boost::mutex> task_lock(task_mutex_);
+        p_task->setTaskStat(TaskStat::TASK_RUNNING); 
+    }
+
+    void removeBlockingFd(int fd) override {
+        task_blocking_list_.erase(fd);
+    }
+
+    Task_Ptr getCurrentTask() const override
+    {
+        return current_task_;
+    }
+
+    bool isInCoroutine() const override {
+        return !!current_task_;
     }
 
     bool do_run_one() override
@@ -121,12 +166,12 @@ public:
                 if (auto tk = task_blocking_list_[fd].lock())
                 {
                     ++ ret;
-                    task_list_.emplace_front(tk);
+                    resumeTask(tk); 
                 }
 
                 // 目前只以oneshot的方式使用，后续待优化
                 delEvent(fd);
-                task_blocking_list_.erase(fd);
+                removeBlockingFd(fd);
             }
 
             if (ret > 0)
@@ -142,8 +187,10 @@ public:
     }
 
 private:
+    Task_Ptr      current_task_;
     boost::mutex  task_mutex_;
     boost::condition_variable_any  task_notify_;
+    boost::mutex  task_blocking_mutex_;
 };
 
 using Thread_Ptr = std::shared_ptr<Thread>;

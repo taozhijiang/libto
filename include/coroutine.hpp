@@ -15,13 +15,13 @@ public:
     template <typename Arg>
     void bind_proc(Arg const& arg)
     {
-        Scheduler::getInstance().CreateTask(arg);
+        Scheduler::getInstance().createTask(arg);
     }
 
     template <typename Arg>
     void bind_proc(Arg const& arg, std::size_t dispatch)
     {
-        Scheduler::getInstance().CreateTask(arg, dispatch);
+        Scheduler::getInstance().createTask(arg, dispatch);
     }
 };
 

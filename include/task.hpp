@@ -4,7 +4,7 @@
 #include "general.hpp"
 #include "context.hpp"
 
-#include <deque>
+#include <list>
 #include <map>
 #include <vector>
 
@@ -30,12 +30,11 @@ class Task {
     friend class TaskOperation;
 
 public:
-    Task(TaskFunc const& fn, Thread* p_thread):
+    Task(TaskFunc const& fn):
     t_id_(task_uuid++),
     task_stat_(TaskStat::TASK_INITIALIZE),
     func_(fn),
-    context_([this] {Task_Callback();}),
-    p_thread_(p_thread)
+    context_([this] {Task_Callback();})
     {
         BOOST_LOG_T(info) << "Created Coroutine with task_id: " << t_id_ << std::endl;
     }
@@ -80,32 +79,25 @@ private:
     TaskStat  task_stat_;
     TaskFunc  func_;
     Context   context_;
-    Thread*   p_thread_;
 };
 
 
 class TaskOperation {
 public:
     TaskOperation():
-    task_list_(),current_task_(nullptr) {}
+    task_list_() {}
 
-    Task_Ptr GetCurrentTask() const
-    {
-        return current_task_;
-    }
+    virtual void createTask(TaskFunc const& func) = 0;
 
-    bool InCoroutine() const {
-        return !!current_task_;
-    }
+    virtual void addTask(const Task_Ptr &p_task, TaskStat stat = TaskStat::TASK_RUNNING) = 0; 
+    virtual void removeTask(const Task_Ptr& p_task) = 0;
 
-    // 主线程中会返回nullptr
-    Thread* GetCurrentThead() const
-    {
-        if (!current_task_)
-            return nullptr;
+    virtual void blockTask(int fd, const Task_Ptr& p_task) = 0;
+    virtual void resumeTask(const Task_Ptr& p_task) = 0;
+    virtual void removeBlockingFd(int fd) = 0;
 
-        return current_task_->p_thread_;
-    }
+    virtual Task_Ptr getCurrentTask() const = 0;
+    virtual bool isInCoroutine() const = 0;
 
     virtual bool do_run_one() = 0;
     virtual std::size_t RunUntilNoTask() = 0;
@@ -116,15 +108,14 @@ public:
 
     virtual ~TaskOperation() = default;
 
-protected:
-    std::deque<Task_Ptr> task_list_;
-    Task_Ptr current_task_;
+public:
+    std::list<Task_Ptr> task_list_;
 
     // IO 等待的列表，socket/fd
     std::map<int, Task_Weak> task_blocking_list_;
 
     // 空闲的Task对象缓存队列
-    std::vector<Task_Ptr> task_obj_cache_;
+    std::vector<Task_Ptr>    task_obj_cache_;
 
     static Task_Ptr null_task_;
 };
