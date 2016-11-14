@@ -39,6 +39,7 @@ public:
 
         if (event_fd_ == -1 || max_events_ == 0)
         {
+            BOOST_LOG_T(debug) << "Resize events default to 128 " << endl;
             max_events_ = 128; // for default
             events_ = (struct epoll_event*)calloc(max_events_, sizeof(struct epoll_event));
             assert(events_);

@@ -47,7 +47,7 @@ public:
     }
 
     void resumeTask(const Task_Ptr& p_task) override {
-        p_task->setTaskStat(TaskStat::TASK_RUNNING); 
+        p_task->setTaskStat(TaskStat::TASK_RUNNING);
     }
 
     void removeBlockingFd(int fd) override {
@@ -74,7 +74,7 @@ public:
             Thread_Ptr th = std::make_shared<Thread>();
             thread_group_.create_thread(boost::bind(&Thread::RunTask, th));
             thread_list_[dispatch] = th;
-            BOOST_LOG_T(debug) << "Create Thread Index: " << dispatch << endl;
+            BOOST_LOG_T(debug) << "Create Thread Index @: " << dispatch << endl;
         }
 
         thread_list_[dispatch]->createTask(func);
@@ -90,10 +90,14 @@ public:
             return false;
 
         Task_Ptr ptr = task_list_.front();
-        if (ptr->getTaskStat() != TaskStat::TASK_RUNNING) 
-            return false;
+        task_list_.pop_front();
 
-        task_list_.pop_front(); 
+        // move front to tail
+        if (ptr->getTaskStat() != TaskStat::TASK_RUNNING) {
+            task_list_.push_back(ptr);
+            return false;
+        }
+
         current_task_ = ptr;
         ptr->swapIn();
 
@@ -116,12 +120,15 @@ public:
         bool ret = false;
         std::vector<int> fd_coll;
 
+        BOOST_LOG_T(log) << "Main Thread RunTask() ..." << endl;
+
         for (;;) {
             if( (ret = do_run_one()) )
                 ++ n;
 
             // Main Thread Check
             traverseTaskEvents(fd_coll, 50);
+            ::sleep(1);
 
             // Other Thread Check
             for (auto& ithread: thread_list_){
@@ -136,15 +143,26 @@ public:
         return n;
     }
 
+    // RunUntilNoTask() 不会处理其他线程的事件，此处需要注意
     std::size_t RunUntilNoTask() override
     {
         std::size_t n = 0;
         bool ret = false;
+        std::vector<int> fd_coll;
+
         BOOST_LOG_T(log) << "Main Thread RunUntilNoTask() ..." << endl;
+
+        if (!thread_list_.empty()) {
+            BOOST_LOG_T(log) << "RunUntilNoTask will not handle thread events, do not use these!" << endl;
+            ::abort();
+        }
 
         for (;;) {
             if( (ret = do_run_one()) )
                 ++ n;
+
+            // Main Thread Check
+            traverseTaskEvents(fd_coll, 50);
 
             if (task_list_.empty())
                break;
@@ -164,7 +182,7 @@ public:
                 if (auto tk = task_blocking_list_[fd].lock())
                 {
                     ++ ret;
-                    resumeTask(tk); 
+                    resumeTask(tk);
                 }
 
                 // 目前只以oneshot的方式使用，后续待优化

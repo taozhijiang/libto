@@ -78,4 +78,16 @@ BOOST_AUTO_TEST_CASE(test1)
     return;
 }
 
+
+BOOST_AUTO_TEST_CASE(test2)
+{
+	coroutine c;
+    c.bind_proc(echo, 2);
+
+    RunTask;
+    JoinAllThreads;
+
+    return;
+}
+
 BOOST_AUTO_TEST_SUITE_END()

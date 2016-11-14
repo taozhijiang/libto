@@ -24,6 +24,7 @@ namespace libto {
     ThreadLocalInfo& GetThreadInstance()
     {
         static __thread ThreadLocalInfo *info = nullptr;
+
         if (!info)
             info = new ThreadLocalInfo();
 

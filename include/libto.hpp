@@ -15,16 +15,11 @@ using scheduler = libto::Scheduler;
 namespace libto {
 inline TaskOperation* GetCurrentTaskOperation() {
     Thread *p_thread = GetThreadInstance().thread_;
+
     if (!p_thread)
-    {
-        std::cout << "Main Thread" << endl;
         return &Scheduler::getInstance();
-    }
     else
-    {
-        std::cout << "Worker Thread" << endl;
         return p_thread;
-    }
 }
 
 inline Epoll* GetCurrentEpoll() {

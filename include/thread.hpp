@@ -33,7 +33,8 @@ public:
     {
         sigignore(SIGPIPE);
         current_task_ = nullptr;
-        GetThreadInstance().thread_ = this;
+        // Error!!! not for thread
+        //GetThreadInstance().thread_ = this;
         BOOST_LOG_T(debug) << "Create New Thread: " << boost::this_thread::get_id() << endl;
     }
 
@@ -50,8 +51,8 @@ public:
             p_task->setTaskStat(stat);
             task_list_.push_back(p_task);
         }
-        if (stat == TaskStat::TASK_RUNNING) 
-            task_notify_.notify_one(); 
+        if (stat == TaskStat::TASK_RUNNING)
+            task_notify_.notify_one();
         return;
     }
 
@@ -69,7 +70,7 @@ public:
 
     void resumeTask(const Task_Ptr& p_task) override {
         boost::lock_guard<boost::mutex> task_lock(task_mutex_);
-        p_task->setTaskStat(TaskStat::TASK_RUNNING); 
+        p_task->setTaskStat(TaskStat::TASK_RUNNING);
     }
 
     void removeBlockingFd(int fd) override {
@@ -96,6 +97,11 @@ public:
 
             ptr = task_list_.front();
             task_list_.pop_front();
+
+            if (ptr->getTaskStat() != TaskStat::TASK_RUNNING) {
+                task_list_.push_back(ptr);
+                return false;
+            }
         }
 
         current_task_ = ptr;
@@ -120,10 +126,16 @@ public:
         std::size_t n = 0;
         bool ret = false;
 
+        // ATTENTION !!!
+        // VERY IMPORTANT !!!!
+        GetThreadInstance().thread_ = this;
+        BOOST_LOG_T(log) << "Worker Thread RunTask() ..." << endl;
+
         for (;;) {
             if( (ret = do_run_one()) )
                 ++ n;
 
+::sleep(1);
             {
                 boost::unique_lock<boost::mutex> task_lock(task_mutex_);
                 while (task_list_.empty()) {
@@ -140,6 +152,11 @@ public:
     {
         std::size_t n = 0;
         bool ret = false;
+
+        // ATTENTION !!!
+        // VERY IMPORTANT !!!!
+        GetThreadInstance().thread_ = this;
+        BOOST_LOG_T(log) << "Worker Thread RunUntilNoTask() ..." << endl;
 
         for (;;) {
             if( (ret = do_run_one()) )
@@ -162,11 +179,12 @@ public:
         if(traverseEvent(fd_coll, ms) && !fd_coll.empty())
         {
             boost::lock_guard<boost::mutex> task_lock(task_mutex_);
-            for (auto fd: fd_coll){
+            for (auto fd: fd_coll) {
                 if (auto tk = task_blocking_list_[fd].lock())
                 {
                     ++ ret;
-                    resumeTask(tk); 
+                    // can not call resumeTask, which will rehold the lock
+                    tk->setTaskStat(TaskStat::TASK_RUNNING);
                 }
 
                 // 目前只以oneshot的方式使用，后续待优化
@@ -174,8 +192,9 @@ public:
                 removeBlockingFd(fd);
             }
 
-            if (ret > 0)
+            if (ret > 0){
                 task_notify_.notify_one();
+            }
         }
 
         return ret;
@@ -190,7 +209,6 @@ private:
     Task_Ptr      current_task_;
     boost::mutex  task_mutex_;
     boost::condition_variable_any  task_notify_;
-    boost::mutex  task_blocking_mutex_;
 };
 
 using Thread_Ptr = std::shared_ptr<Thread>;
