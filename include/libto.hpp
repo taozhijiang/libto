@@ -13,23 +13,8 @@ using coroutine = libto::Coroutine;
 using scheduler = libto::Scheduler;
 
 namespace libto {
-inline TaskOperation* GetCurrentTaskOperation() {
-    Thread *p_thread = GetThreadInstance().thread_;
-
-    if (!p_thread)
-        return &Scheduler::getInstance();
-    else
-        return p_thread;
-}
-
-inline Epoll* GetCurrentEpoll() {
-    Thread *p_thread = GetThreadInstance().thread_;
-    if (!p_thread)
-        return &Scheduler::getInstance();
-    else
-        return p_thread;
-}
-
+    extern TaskOperation* GetCurrentTaskOperation();
+    extern Epoll* GetCurrentEpoll();
 }
 
 #define sch_yield do{  libto::Task_Ptr curr_ = libto::GetCurrentTaskOperation()->getCurrentTask(); \
@@ -54,7 +39,7 @@ inline Epoll* GetCurrentEpoll() {
                         curr_->swapOut(); \
                         } while(0);
 
-#define sch_rw(fd)    do{ \
+#define sch_rdwr(fd)  do{ \
                         libto::Task_Ptr curr_ = libto::GetCurrentTaskOperation()->getCurrentTask(); \
                         libto::GetCurrentEpoll()->addEvent(fd,  EPOLLIN | EPOLLOUT | EPOLLERR); \
                         libto::GetCurrentTaskOperation()->blockTask(fd, curr_); \

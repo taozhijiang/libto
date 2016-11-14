@@ -9,6 +9,8 @@
 
 #include <boost/thread.hpp>
 
+#include <sys/timerfd.h>
+
 #include <vector>
 
 namespace libto {
@@ -20,14 +22,6 @@ public:
     {
         static Scheduler obj;
         return obj;
-    }
-
-    // Create coroutine task in main thread
-    void createTask(TaskFunc const& func) override
-    {
-        Task_Ptr p_task( new Task(func) );
-        addTask(p_task);
-        return;
     }
 
     void addTask(const Task_Ptr& p_task, TaskStat stat = TaskStat::TASK_RUNNING) override {
@@ -54,14 +48,6 @@ public:
         task_blocking_list_.erase(fd);
     }
 
-    Task_Ptr getCurrentTask() const override
-    {
-        return current_task_;
-    }
-
-    bool isInCoroutine() const override {
-        return !!current_task_;
-    }
 
     // dispatch 从0开始的线程索引号
     void createTask(TaskFunc const& func, std::size_t dispatch)
@@ -133,10 +119,10 @@ public:
             // Other Thread Check
             for (auto& ithread: thread_list_){
                 if (ithread){
+                    // immediately
                     ithread->traverseTaskEvents(fd_coll);
                 }
             }
-
         }
 
         BOOST_LOG_T(info) << "Already run " << n << " serivces... " << endl;
@@ -196,6 +182,14 @@ public:
 
     void joinAllThreads() {
         thread_group_.join_all();
+    }
+
+    Task_Ptr getCurrentTask() const override {
+        return current_task_;
+    }
+
+    bool isInCoroutine() const override {
+        return !!current_task_;
     }
 
 private:

@@ -38,13 +38,6 @@ public:
         BOOST_LOG_T(debug) << "Create New Thread: " << boost::this_thread::get_id() << endl;
     }
 
-    void createTask(TaskFunc const& func) override
-    {
-        Task_Ptr p_task( new Task(func));
-        addTask(p_task);
-        return;
-    }
-
     void addTask(const Task_Ptr& p_task, TaskStat stat = TaskStat::TASK_RUNNING) override {
         {
             boost::lock_guard<boost::mutex> task_lock(task_mutex_);
@@ -63,9 +56,15 @@ public:
     }
 
     void blockTask(int fd, const Task_Ptr& p_task) override {
-        boost::lock_guard<boost::mutex> task_lock(task_mutex_);
-        p_task->setTaskStat(TaskStat::TASK_BLOCKING);
-        task_blocking_list_[fd] = p_task;
+        {
+            boost::lock_guard<boost::mutex> task_lock(task_mutex_);
+            p_task->setTaskStat(TaskStat::TASK_BLOCKING);
+        }
+        {
+            boost::lock_guard<boost::mutex> task_lock(task_blocking_mutex_);
+            task_blocking_list_[fd] = p_task;
+        }
+        return;
     }
 
     void resumeTask(const Task_Ptr& p_task) override {
@@ -74,16 +73,8 @@ public:
     }
 
     void removeBlockingFd(int fd) override {
+        boost::lock_guard<boost::mutex> task_lock(task_blocking_mutex_);
         task_blocking_list_.erase(fd);
-    }
-
-    Task_Ptr getCurrentTask() const override
-    {
-        return current_task_;
-    }
-
-    bool isInCoroutine() const override {
-        return !!current_task_;
     }
 
     bool do_run_one() override
@@ -172,6 +163,7 @@ public:
         return n;
     }
 
+    // will be called by main thread, watch out for mutex protect
     std::size_t traverseTaskEvents(std::vector<int>& fd_coll, int ms=0) override
     {
         std::size_t ret = 0;
@@ -205,10 +197,20 @@ public:
         BOOST_LOG_T(info) << "Boost Thread Exit... " << endl;
     }
 
+    Task_Ptr getCurrentTask() const override {
+        return current_task_;
+    }
+
+    bool isInCoroutine() const override {
+        return !!current_task_;
+    }
+
 private:
     Task_Ptr      current_task_;
     boost::mutex  task_mutex_;
     boost::condition_variable_any  task_notify_;
+
+    boost::mutex  task_blocking_mutex_; //保护task_blocking_list_结构
 };
 
 using Thread_Ptr = std::shared_ptr<Thread>;

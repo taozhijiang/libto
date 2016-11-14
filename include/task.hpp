@@ -8,6 +8,8 @@
 #include <map>
 #include <vector>
 
+#include <sys/timerfd.h>
+
 namespace libto {
 
 class Task;
@@ -15,6 +17,11 @@ class TaskOperation;
 using TaskFunc = std::function<void()>;
 using Task_Ptr = std::shared_ptr<Task>;
 using Task_Weak = std::weak_ptr<Task>;
+
+extern void _sch_yield();
+extern void _sch_read(int fd);
+extern void _sch_write(int fd);
+extern void _sch_rdwr(int fd);
 
 class Thread;
 
@@ -87,17 +94,65 @@ public:
     TaskOperation():
     task_list_() {}
 
-    virtual void createTask(TaskFunc const& func) = 0;
+    void createTask(TaskFunc const& func) {
+        Task_Ptr p_task( new Task(func) );
+        addTask(p_task);
+        return;
+    }
 
-    virtual void addTask(const Task_Ptr &p_task, TaskStat stat = TaskStat::TASK_RUNNING) = 0; 
+    int createTimer(TaskFunc const& func, std::size_t msec, bool forever = false) {
+        int timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+
+        if (timerfd == -1)
+            return -1;
+
+        struct itimerspec itv;
+        struct timespec   now;
+        clock_gettime(CLOCK_MONOTONIC, &now);
+        memset(&itv, 0, sizeof(struct itimerspec));
+        itv.it_value.tv_sec = now.tv_sec + msec/1000;
+        itv.it_value.tv_nsec = now.tv_nsec + (msec%1000)*1000*1000;
+
+        if (forever) {
+            itv.it_interval.tv_sec = msec / 1000;
+            itv.it_interval.tv_nsec = (msec%1000)*1000*1000;
+
+            timerfd_settime(timerfd, TFD_TIMER_ABSTIME, &itv, NULL);
+
+            Task_Ptr p_task( new Task([=] {
+                for(;;){
+                    char null_read[8];
+                    _sch_read(timerfd);
+                    read(timerfd, null_read, 8);
+                    func();
+                }
+            }));
+
+            addTask(p_task);
+        }
+        else {
+            timerfd_settime(timerfd, TFD_TIMER_ABSTIME, &itv, NULL);
+
+            Task_Ptr p_task( new Task([=] {
+                    char null_read[8];
+                    _sch_read(timerfd);
+                    read(timerfd, null_read, 8);
+                    func();
+            }));
+
+            addTask(p_task);
+        }
+
+        return timerfd;
+    }
+    //virtual void removeTimer(int timerfd) = 0;
+
+    virtual void addTask(const Task_Ptr &p_task, TaskStat stat = TaskStat::TASK_RUNNING) = 0;
     virtual void removeTask(const Task_Ptr& p_task) = 0;
 
     virtual void blockTask(int fd, const Task_Ptr& p_task) = 0;
     virtual void resumeTask(const Task_Ptr& p_task) = 0;
     virtual void removeBlockingFd(int fd) = 0;
-
-    virtual Task_Ptr getCurrentTask() const = 0;
-    virtual bool isInCoroutine() const = 0;
 
     virtual bool do_run_one() = 0;
     virtual std::size_t RunUntilNoTask() = 0;
@@ -107,6 +162,9 @@ public:
     virtual std::size_t traverseTaskEvents(std::vector<int>& fd_coll, int ms=0) = 0;
 
     virtual ~TaskOperation() = default;
+
+    virtual Task_Ptr getCurrentTask() const = 0;
+    virtual bool isInCoroutine() const = 0;
 
 public:
     std::list<Task_Ptr> task_list_;

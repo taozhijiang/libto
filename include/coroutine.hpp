@@ -23,6 +23,19 @@ public:
     {
         Scheduler::getInstance().createTask(arg, dispatch);
     }
+
+    template <typename Arg>
+    void bind_timer(Arg const& arg, std::size_t msec, bool forever = false)
+    {
+        Scheduler::getInstance().createTimer(arg, msec, forever);
+    }
+
+    template <typename Arg>
+    void bind_timer(Arg const& arg, std::size_t dispatch,
+                        std::size_t msec, bool forever = false)
+    {
+        Scheduler::getInstance().createTimer(arg, dispatch, msec, forever);
+    }
 };
 
 }
