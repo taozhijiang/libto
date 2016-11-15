@@ -22,6 +22,7 @@ extern void _sch_yield();
 extern void _sch_read(int fd);
 extern void _sch_write(int fd);
 extern void _sch_rdwr(int fd);
+extern int  _timer_prep(std::size_t msec, struct itimerspec& itv, bool forever);
 
 class Thread;
 
@@ -101,24 +102,13 @@ public:
     }
 
     int createTimer(TaskFunc const& func, std::size_t msec, bool forever = false) {
-        int timerfd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK);
+        int timerfd;
+        struct itimerspec itv;
 
-        if (timerfd == -1)
+        if ( (timerfd = _timer_prep(msec, itv, forever)) == -1)
             return -1;
 
-        struct itimerspec itv;
-        struct timespec   now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-        memset(&itv, 0, sizeof(struct itimerspec));
-        itv.it_value.tv_sec = now.tv_sec + msec/1000;
-        itv.it_value.tv_nsec = now.tv_nsec + (msec%1000)*1000*1000;
-
         if (forever) {
-            itv.it_interval.tv_sec = msec / 1000;
-            itv.it_interval.tv_nsec = (msec%1000)*1000*1000;
-
-            timerfd_settime(timerfd, TFD_TIMER_ABSTIME, &itv, NULL);
-
             Task_Ptr p_task( new Task([=] {
                 for(;;){
                     char null_read[8];
@@ -131,8 +121,6 @@ public:
             addTask(p_task);
         }
         else {
-            timerfd_settime(timerfd, TFD_TIMER_ABSTIME, &itv, NULL);
-
             Task_Ptr p_task( new Task([=] {
                     char null_read[8];
                     _sch_read(timerfd);

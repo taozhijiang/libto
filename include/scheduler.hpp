@@ -49,7 +49,6 @@ public:
         task_blocking_list_.erase(fd);
     }
 
-
     // dispatch 从0开始的线程索引号
     void createTask(TaskFunc const& func, std::size_t dispatch)
     {
@@ -64,8 +63,26 @@ public:
             BOOST_LOG_T(debug) << "Create Thread Index @: " << dispatch << endl;
         }
 
-        thread_list_[dispatch]->createTask(func);
-        return;
+        return thread_list_[dispatch]->createTask(func);
+    }
+
+    // 引入其他的重载版本
+    using TaskOperation::createTimer;
+
+    int createTimer(TaskFunc const& func, std::size_t dispatch,
+                        std::size_t msec, bool forever = false) {
+        if ( (dispatch + 1) > thread_list_.size() )
+            thread_list_.resize(dispatch + 1);
+
+        if (!thread_list_[dispatch])
+        {
+            Thread_Ptr th = std::make_shared<Thread>();
+            thread_group_.create_thread(boost::bind(&Thread::RunTask, th));
+            thread_list_[dispatch] = th;
+            BOOST_LOG_T(debug) << "Create Thread Index @: " << dispatch << endl;
+        }
+
+        return thread_list_[dispatch]->createTimer(func, msec, forever);
     }
 
     /**
