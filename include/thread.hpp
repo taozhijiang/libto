@@ -35,7 +35,7 @@ public:
         current_task_ = nullptr;
         // Error!!! not for thread
         //GetThreadInstance().thread_ = this;
-        BOOST_LOG_T(debug) << "Create New Thread: " << boost::this_thread::get_id() << endl;
+        BOOST_LOG_T(debug) << "Create New Thread: " << boost::this_thread::get_id();
     }
 
     void addTask(const Task_Ptr& p_task, TaskStat stat = TaskStat::TASK_RUNNING) override {
@@ -102,7 +102,7 @@ public:
         current_task_ = null_task_;
         if (ptr->isFinished()) {
             // Task会被自动析构，后续考虑搞个对象缓存列表
-            BOOST_LOG_T(debug) << "Job is finished with " << ptr->t_id_ << endl;
+            BOOST_LOG_T(debug) << "Job is finished with " << ptr->t_id_ ;
         }
         else{
             boost::lock_guard<boost::mutex> task_lock(task_mutex_);
@@ -122,7 +122,7 @@ public:
         // VERY IMPORTANT !!!!
         GetThreadInstance().thread_ = this;
 
-        BOOST_LOG_T(log) << "Worker Thread RunTask() ..." << endl;
+        BOOST_LOG_T(info) << "Worker Thread RunTask() ..." ;
 
         for (;;) {
             real_do = false;
@@ -147,7 +147,7 @@ public:
             }
         }
 
-        BOOST_LOG_T(info) << "Already run " << total << " serivces... " << endl;
+        BOOST_LOG_T(info) << "Already run " << total << " serivces... " ;
         return total;
     }
 
@@ -160,7 +160,7 @@ public:
         // ATTENTION !!!
         // VERY IMPORTANT !!!!
         GetThreadInstance().thread_ = this;
-        BOOST_LOG_T(log) << "Worker Thread RunUntilNoTask() ..." << endl;
+        BOOST_LOG_T(info) << "Worker Thread RunUntilNoTask() ..." ;
 
         for (;;) {
             real_do = false;
@@ -184,7 +184,7 @@ public:
             }
         }
 
-        BOOST_LOG_T(info) << "Already run " << total << " serivces... " << endl;
+        BOOST_LOG_T(info) << "Already run " << total << " serivces... ";
         return total;
     }
 
@@ -219,7 +219,7 @@ public:
 
 
     virtual ~Thread() {
-        BOOST_LOG_T(info) << "Boost Thread Exit... " << endl;
+        BOOST_LOG_T(info) << "Boost Thread Exit... ";
     }
 
     Task_Ptr getCurrentTask() const override {

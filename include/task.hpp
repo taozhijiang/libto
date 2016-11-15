@@ -44,7 +44,7 @@ public:
     func_(fn),
     context_([this] {Task_Callback();})
     {
-        BOOST_LOG_T(info) << "Created Coroutine with task_id: " << t_id_ << std::endl;
+        BOOST_LOG_T(info) << "Created Coroutine with task_id: " << t_id_ ;
     }
 
     void Task_Callback() {
@@ -75,13 +75,17 @@ public:
     }
 
     ~Task() {
-        BOOST_LOG_T(info) << "Terminated Coroutine with task_id: " << t_id_ << std::endl;
+        BOOST_LOG_T(info) << "Terminated Coroutine with task_id: " << t_id_ ;
+    }
+
+    static uint64_t currentTaskUUID() {
+        return task_uuid;
     }
 
 public:
     const uint64_t t_id_;
 
-private:
+protected:
     static uint64_t task_uuid;
 
     TaskStat  task_stat_;
@@ -153,7 +157,7 @@ public:
     virtual Task_Ptr getCurrentTask() const = 0;
     virtual bool isInCoroutine() const = 0;
 
-public:
+protected:
     std::list<Task_Ptr> task_list_;
 
     // IO 等待的列表，socket/fd

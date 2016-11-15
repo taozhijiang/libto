@@ -66,7 +66,7 @@ public:
             Thread_Ptr th = std::make_shared<Thread>();
             thread_group_.create_thread(boost::bind(&Thread::RunTask, th));
             thread_list_[dispatch] = th;
-            BOOST_LOG_T(debug) << "Create Thread Index @: " << dispatch << endl;
+            BOOST_LOG_T(debug) << "Create Thread Index @: " << dispatch;
         }
 
         return thread_list_[dispatch]->createTask(func);
@@ -82,7 +82,7 @@ public:
             Thread_Ptr th = std::make_shared<Thread>();
             thread_group_.create_thread(boost::bind(&Thread::RunTask, th));
             thread_list_[dispatch] = th;
-            BOOST_LOG_T(debug) << "Create Thread Index @: " << dispatch << endl;
+            BOOST_LOG_T(debug) << "Create Thread Index @: " << dispatch;
         }
 
         return thread_list_[dispatch]->createTimer(func, msec, forever);
@@ -112,7 +112,7 @@ public:
         current_task_ = null_task_;
         if (ptr->isFinished()) {
             // Task会被自动析构，后续考虑搞个对象缓存列表
-            BOOST_LOG_T(debug) << "Job is finished with " << ptr->t_id_ << endl;
+            BOOST_LOG_T(debug) << "Job is finished with " << ptr->t_id_ ;
         }
         else{
             task_list_.push_back(ptr);
@@ -133,7 +133,7 @@ public:
         std::vector<int> fd_coll;
         Task_Ptr p_task;
 
-        BOOST_LOG_T(log) << "Main Thread RunTask() ..." << endl;
+        BOOST_LOG_T(info) << "Main Thread RunTask() ...";
 
         for (;;) {
             n = 0;           //切换协程次数
@@ -170,7 +170,7 @@ public:
             }
         }
 
-        BOOST_LOG_T(info) << "Already run " << total << " serivces... " << endl;
+        BOOST_LOG_T(info) << "Already run " << total << " serivces... " ;
         return total;
     }
 
@@ -183,10 +183,10 @@ public:
         std::vector<int> fd_coll;
         Task_Ptr p_task;
 
-        BOOST_LOG_T(log) << "Main Thread RunUntilNoTask() ..." << endl;
+        BOOST_LOG_T(debug) << "Main Thread RunUntilNoTask() ...";
 
         if (!thread_list_.empty()) {
-            BOOST_LOG_T(log) << "RunUntilNoTask will not handle thread events, do not use these!" << endl;
+            BOOST_LOG_T(error) << "RunUntilNoTask will not handle thread events, do not use these!" << endl;
             ::abort();
         }
 
@@ -213,7 +213,7 @@ public:
             }
         }
 
-        BOOST_LOG_T(info) << "Already run " << total << " serivces... " << endl;
+        BOOST_LOG_T(info) << "Already run " << total << " serivces... " ;
         return n;
     }
 
@@ -249,6 +249,12 @@ public:
 
     bool isInCoroutine() const override {
         return !!current_task_;
+    }
+
+    void showStat(){
+        BOOST_LOG_T(info) << "libto stat display: " ;
+        BOOST_LOG_T(info) << "current coroutine uuid: " << Task::currentTaskUUID() ;
+        BOOST_LOG_T(info) << "Main Thread -> TOTAL:" " RUNNING:" << 0 << ", BLOCKING";
     }
 
 private:

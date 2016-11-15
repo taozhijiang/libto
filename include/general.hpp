@@ -18,11 +18,20 @@ using std::uint64_t;
 
 namespace libto {
 
-extern char *basename(char *path);
-#if 1
-#define BOOST_LOG_T(x) std::cerr<<std::endl<<#x<<":"<<__LINE__<<"[@"<<__func__<<"]"<<" "
+static inline const char* basename(const char* file) {
+    const char* p = strrchr(file, '/');
+    if (p) return p + 1;
+
+    p = strrchr(file, '\\');
+    if (p) return p + 1;
+
+    return file;
+}
+
+#if 0
+#define BOOST_LOG_T(x) std::cerr<<std::endl<<#x<<":"<<basename(__FILE__)<<__LINE__<<"[@"<<__func__<<"]"<<" "
 #else
-#define BOOST_LOG_T(x) BOOST_LOG_TRIVIAL(x)<<::basename(__FILE__)<<":"<<__LINE__<<"[@"<<__func__<<"]"<<" "
+#define BOOST_LOG_T(x) BOOST_LOG_TRIVIAL(x)<<basename(__FILE__)<<":"<<__LINE__<<"[@"<<__func__<<"]"<<" "
 #endif
 
 

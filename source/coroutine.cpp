@@ -4,6 +4,7 @@
 #include "task.hpp"
 #include "thread.hpp"
 
+
 namespace libto {
 
     uint64_t Task::task_uuid = 0;
@@ -15,17 +16,6 @@ namespace libto {
     void _sch_read(int fd);
     void _sch_write(int fd);
     void _sch_rdwr(int fd);
-
-    int st_make_nonblock(int socket)
-    {
-        int flags = 0;
-
-        flags = fcntl (socket, F_GETFL, 0);
-    	flags |= O_NONBLOCK;
-        fcntl (socket, F_SETFL, flags);
-
-        return 0;
-    }
 
 
     ThreadLocalInfo& GetThreadInstance()

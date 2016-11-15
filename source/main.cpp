@@ -27,7 +27,7 @@ void respon_func(int sock){
                 break;
             }
             else {
-                BOOST_LOG_T(error) << "RECV ERROR for socket:" << sock << endl;
+                BOOST_LOG_T(error) << "RECV ERROR for socket:" << sock ;
                 break;
             }
         }
@@ -53,13 +53,13 @@ void server()
 	svraddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if(bind(lsocket, (struct sockaddr *)&svraddr, sizeof(struct sockaddr_in))) {
-		std::cerr << "Socket Bind Error!" << endl;
+		std::cerr << "Socket Bind Error!" ;
         close(lsocket);
 		return;
 	}
 
     if(listen(lsocket, 20)){
-		std::cerr << "Socket Listen Error!" << endl;
+		std::cerr << "Socket Listen Error!" ;
         close(lsocket);
 		return;
 	}
@@ -75,7 +75,7 @@ void server()
         sch_read(lsocket);
         accept_fd = accept(lsocket, &in_addr, &in_len); //非阻塞的Socket
         if (accept_fd == -1) {
-            std::cerr << "Socket Accept Error!" << endl;
+            std::cerr << "Socket Accept Error!" ;
             continue;
         }
 
@@ -85,9 +85,16 @@ void server()
     return;
 }
 
+namespace libto {
+
+extern bool libto_init();
+
+}
 
 int main(int argc, char* argv[])
 {
+    libto::libto_init();
+
 	coroutine c;
     c.bind_proc(server, 0);
 

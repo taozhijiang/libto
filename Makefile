@@ -8,8 +8,10 @@ PACKAGE_VERSION = 1.0
 SHELL = /bin/bash
 VERSION = 1.0
 SRC_DIRS = ./source
-EXTRAFLAGS =  -I./include/ 
+EXTRAFLAGS =  -I/home/user/MacOS/ReadTheCode/boost/installdir/include -I./include/ -L/home/user/MacOS/ReadTheCode/boost/installdir/lib
+EXTRAFLAGS += -DBOOST_LOG_DYN_LINK 
 EXTRAFLAGS += -lboost_system -lboost_context -lboost_thread -lboost_date_time -lboost_log -lboost_log_setup 
+EXTRAFLAGS += -lpthread
 EXTRAFLAGS += -Wall -Wextra -march=native
 
 OBJDIR = ./obj
