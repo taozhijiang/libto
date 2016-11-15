@@ -38,6 +38,10 @@ namespace libto {
         return *info;
     }
 
+    bool IsMainThread() {
+        return  ! GetThreadInstance().thread_;
+    }
+
     TaskOperation* GetCurrentTaskOperation() {
         Thread *p_thread = GetThreadInstance().thread_;
 
@@ -65,14 +69,22 @@ namespace libto {
     // 依据定时器的原理实现
     bool _sch_sleep_ms(std::size_t msec) {
         int timerfd;
-        char null_read[8];
+        // char null_read[8];
+
+        // 主线程的主协程一定不能够被阻塞出去，否则永远无法切换回来
+        // 虽然用户无法在主协程中添加东西，但是开发者要注意
+        assert (! (IsMainThread() && !GetCurrentTaskOperation()->isInCoroutine()) );
+
         Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
 
         if ( msec == 0 || (timerfd = _timer_prep(msec, false)) == -1)
             return false;
 
         _sch_read(timerfd);
-        read(timerfd, null_read, 8);
+        // read(timerfd, null_read, 8);
+
+        GetCurrentEpoll()->delEvent(timerfd);
+        close(timerfd);
 
         return true;
     }
@@ -108,6 +120,9 @@ namespace libto {
     }
 
     void _sch_read(int fd) {
+
+        assert (! (IsMainThread() && !GetCurrentTaskOperation()->isInCoroutine()) );
+
         Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
         GetCurrentEpoll()->addEvent(fd,  EPOLLIN | EPOLLERR);
         GetCurrentTaskOperation()->blockTask(fd, curr_);
@@ -115,6 +130,9 @@ namespace libto {
     }
 
     void _sch_write(int fd) {
+
+        assert (! (IsMainThread() && !GetCurrentTaskOperation()->isInCoroutine()) );
+
         Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
         GetCurrentEpoll()->addEvent(fd,  EPOLLIN | EPOLLERR);
         GetCurrentTaskOperation()->blockTask(fd, curr_);
@@ -122,6 +140,9 @@ namespace libto {
     }
 
     void _sch_rdwr(int fd) {
+
+        assert (! (IsMainThread() && !GetCurrentTaskOperation()->isInCoroutine()) );
+
         Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
         GetCurrentEpoll()->addEvent(fd,  EPOLLIN | EPOLLERR);
         GetCurrentTaskOperation()->blockTask(fd, curr_);

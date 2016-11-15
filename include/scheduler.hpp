@@ -36,6 +36,7 @@ public:
         return;
     }
 
+    // task_blocking_list_ 中是弱引用
     void removeTask(const Task_Ptr& p_task) override {
         task_list_.remove(p_task);
         return;
@@ -261,8 +262,8 @@ private:
         GetThreadInstance().thread_ = nullptr;
     }
 
-    Task_Ptr               current_task_;
-    boost::thread_group    thread_group_;
+    Task_Ptr                 current_task_;
+    boost::thread_group      thread_group_;
     std::vector<Thread_Ptr> thread_list_; //默认在main thread中执行的协程
 };
 
