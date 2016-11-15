@@ -7,7 +7,7 @@ Support:
 epoll   
 timer   
 yield   
-sleep(TODO)   
+sleep    
 
 Note:   
 Current not ready for production environment!   

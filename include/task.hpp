@@ -22,7 +22,7 @@ extern void _sch_yield();
 extern void _sch_read(int fd);
 extern void _sch_write(int fd);
 extern void _sch_rdwr(int fd);
-extern int  _timer_prep(std::size_t msec, struct itimerspec& itv, bool forever);
+extern int  _timer_prep(std::size_t msec, bool forever);
 
 class Thread;
 
@@ -103,9 +103,8 @@ public:
 
     int createTimer(TaskFunc const& func, std::size_t msec, bool forever = false) {
         int timerfd;
-        struct itimerspec itv;
 
-        if ( (timerfd = _timer_prep(msec, itv, forever)) == -1)
+        if ( (timerfd = _timer_prep(msec, forever)) == -1)
             return -1;
 
         if (forever) {

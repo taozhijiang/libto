@@ -19,6 +19,11 @@ namespace libto {
 class Scheduler: public boost::noncopyable, public TaskOperation, public Epoll
 {
 public:
+
+    // 引入其他的重载版本
+    using TaskOperation::createTask;
+    using TaskOperation::createTimer;
+
     static Scheduler& getInstance()
     {
         static Scheduler obj;
@@ -65,9 +70,6 @@ public:
 
         return thread_list_[dispatch]->createTask(func);
     }
-
-    // 引入其他的重载版本
-    using TaskOperation::createTimer;
 
     int createTimer(TaskFunc const& func, std::size_t dispatch,
                         std::size_t msec, bool forever = false) {

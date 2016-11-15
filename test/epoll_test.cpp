@@ -2,7 +2,7 @@
 
 #include "libto.hpp"
 
-BOOST_AUTO_TEST_SUITE(sch_yield_test)
+BOOST_AUTO_TEST_SUITE(epoll_test)
 
 #include <sys/types.h>          /* See NOTES */
 #include <sys/socket.h>
@@ -68,7 +68,7 @@ void echo()
 }
 
 
-BOOST_AUTO_TEST_CASE(test1)
+BOOST_AUTO_TEST_CASE(epoll_test_test1)
 {
 	coroutine c;
     c.bind_proc(echo);
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(test1)
 }
 
 
-BOOST_AUTO_TEST_CASE(test2)
+BOOST_AUTO_TEST_CASE(epoll_test_test2)
 {
 	coroutine c;
     c.bind_proc(echo, 2);

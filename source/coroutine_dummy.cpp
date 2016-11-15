@@ -9,6 +9,13 @@ namespace libto {
     uint64_t Task::task_uuid = 0;
     Task_Ptr TaskOperation::null_task_ = nullptr;
 
+    void _sch_yield();
+    int _timer_prep(std::size_t msec, bool forever);
+    bool _sch_sleep_ms(std::size_t msec);
+    void _sch_read(int fd);
+    void _sch_write(int fd);
+    void _sch_rdwr(int fd);
+
     int st_make_nonblock(int socket)
     {
         int flags = 0;
@@ -55,10 +62,26 @@ namespace libto {
             curr_->swapOut();
     }
 
+    // 依据定时器的原理实现
+    bool _sch_sleep_ms(std::size_t msec) {
+        int timerfd;
+        char null_read[8];
+        Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
+
+        if ( msec == 0 || (timerfd = _timer_prep(msec, false)) == -1)
+            return false;
+
+        _sch_read(timerfd);
+        read(timerfd, null_read, 8);
+
+        return true;
+    }
+
     // return timerfd, -1 for error
-    int _timer_prep(std::size_t msec, struct itimerspec& itv, bool forever) {
+    int _timer_prep(std::size_t msec, bool forever) {
         int timerfd = -1;
-        struct timespec   now;
+        struct timespec now;
+        struct itimerspec itv;
 
         if (msec == 0)
             return -1;
@@ -83,13 +106,7 @@ namespace libto {
 
         return timerfd;
     }
-#if 0
-    void _sch_sleep_ms(std::size_t msec) {
-        Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
-        if(curr_)
-            curr_->swapOut();
-    }
-#endif
+
     void _sch_read(int fd) {
         Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
         GetCurrentEpoll()->addEvent(fd,  EPOLLIN | EPOLLERR);

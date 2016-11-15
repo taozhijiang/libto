@@ -28,7 +28,7 @@ void echo6(string msg)
     BOOST_LOG_T(info) << "std::function echo output with: " << msg << endl;
 }
 
-BOOST_AUTO_TEST_CASE(test1)
+BOOST_AUTO_TEST_CASE(callable_test_test1)
 {
 	coroutine c;
     c.bind_proc(echo);
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(test1)
         std::cout << "reuse coroutine object!" << endl;
     });
 
-    
+
     RunUntilNoTask;
 
 

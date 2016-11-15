@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(test1)
 
     RunTask;
 
-    return 0;
+    return;
 }
 
 BOOST_AUTO_TEST_CASE(test2)
@@ -52,7 +52,7 @@ BOOST_AUTO_TEST_CASE(test2)
 
     RunTask;
 
-    return 0;
+    return;
 }
 
 
