@@ -134,7 +134,7 @@ namespace libto {
         assert (! (IsMainThread() && !GetCurrentTaskOperation()->isInCoroutine()) );
 
         Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
-        GetCurrentEpoll()->addEvent(fd,  EPOLLIN | EPOLLERR);
+        GetCurrentEpoll()->addEvent(fd,  EPOLLOUT | EPOLLERR);
         GetCurrentTaskOperation()->blockTask(fd, curr_);
         curr_->swapOut();
     }
@@ -144,7 +144,7 @@ namespace libto {
         assert (! (IsMainThread() && !GetCurrentTaskOperation()->isInCoroutine()) );
 
         Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
-        GetCurrentEpoll()->addEvent(fd,  EPOLLIN | EPOLLERR);
+        GetCurrentEpoll()->addEvent(fd,  EPOLLIN | EPOLLOUT | EPOLLERR);
         GetCurrentTaskOperation()->blockTask(fd, curr_);
         curr_->swapOut();
     }

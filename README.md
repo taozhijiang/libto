@@ -11,3 +11,10 @@ sleep
 
 Note:   
 Current not ready for production environment!   
+
+Performance:    
+CPU: E5-2650 v2 @ 2.60GHz    
+RAM: 4GB (usage 800M)    
+Thread: 11    
+
+![libto](https://raw.githubusercontent.com/taozhijiang/libto/master/libto.jpg)    
