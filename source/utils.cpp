@@ -18,16 +18,25 @@
 
 #include <execinfo.h>
 
+#include "scheduler.hpp"
+
 namespace libto {
 
     void boost_log_init(const string filename_prefix);
     void backtrace_init();
+
+    void signal_handler(int ) {
+
+        Scheduler::getInstance().showStat();
+
+    }
 
     // todo:
     // registerable init hook
     bool libto_init(){
         // ignore sigpipe
         ::signal(SIGPIPE, SIG_IGN);
+        ::signal(SIGUSR1, signal_handler);
 
         boost_log_init("libto_running");
         backtrace_init();

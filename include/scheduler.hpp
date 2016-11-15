@@ -8,6 +8,7 @@
 #include "epoll.hpp"
 
 #include <boost/thread.hpp>
+#include <boost/format.hpp>
 
 #include <sys/timerfd.h>
 #include <unistd.h>
@@ -254,7 +255,23 @@ public:
     void showStat(){
         BOOST_LOG_T(info) << "libto stat display: " ;
         BOOST_LOG_T(info) << "current coroutine uuid: " << Task::currentTaskUUID() ;
-        BOOST_LOG_T(info) << "Main Thread -> TOTAL:" " RUNNING:" << 0 << ", BLOCKING";
+        std::cerr << "current coroutine uuid: " << Task::currentTaskUUID() << endl;
+        BOOST_LOG_T(info) << boost::format("Main Thread -> TOTAL:%lu, BLOCKING:%lu")
+            % task_list_.size() % task_blocking_list_.size();
+        std::cerr << boost::format("Main Thread -> TOTAL:%lu, BLOCKING:%lu")
+            % task_list_.size() % task_blocking_list_.size() << endl;
+        for (auto &ithread: thread_list_) {
+            if (! ithread){
+                 BOOST_LOG_T(info) << " = Empty Thread";
+                 std::cerr << " = Empty Thread" << endl;
+                 continue;
+            }
+
+            BOOST_LOG_T(info) << boost::format(" = Worker Thread -> TOTAL:%lu, BLOCKING:%lu")
+                % ithread->getTaskSize() % ithread->getBlockingSize();
+            std::cerr << boost::format(" = Worker Thread -> TOTAL:%lu, BLOCKING:%lu")
+                % ithread->getTaskSize() % ithread->getBlockingSize() << endl;;
+        }
     }
 
 private:

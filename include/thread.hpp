@@ -77,6 +77,16 @@ public:
         task_blocking_list_.erase(fd);
     }
 
+    std::size_t getTaskSize() {
+        boost::lock_guard<boost::mutex> task_lock(task_mutex_);
+        return task_list_.size();
+    }
+
+    std::size_t getBlockingSize() {
+        boost::lock_guard<boost::mutex> task_lock(task_blocking_mutex_);
+        return task_blocking_list_.size();
+    }
+
     bool do_run_one() override
     {
         Task_Ptr ptr;
