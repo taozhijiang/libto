@@ -1,9 +1,6 @@
 #include "libto.hpp"
 
 #include <sys/types.h>          /* See NOTES */
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netdb.h>
 #include <string>
 
 static std::size_t thread_idx = 0;
@@ -14,11 +11,12 @@ void respon_func(int sock){
     std::string msg_200("HTTP/1.1 200 OK\r\nServer: nginx/1.8.0\r\nDate: Tue, 15 Nov 2016 03:10:22 GMT\r\nContent-Length: 2\r\nConnection: keep-alive\r\n\r\nOK");
 
     libto::st_make_nonblock(sock);
-	sch_read(sock);
 
+    #if 0  /* non-hook edition */
+
+    sch_read(sock);
 	while (true) {
-        count = recv (sock, buf, 512, 0);
-
+        count = read (sock, buf, 512);
         if (count < 0) {
             if ( count == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
                 /*Do your things*/
@@ -36,6 +34,16 @@ void respon_func(int sock){
 			break;
         }
     }
+    #else
+
+    count = read (sock, buf, 512);
+    if (count < 0) { //errno == EAGAIN || errno == EWOULDBLOCK
+        std::cerr << "Hook Read Error!" << std::endl;
+    }
+    else { // OK
+        write(sock, msg_200.c_str(), msg_200.size());
+    }
+    #endif
 
     close(sock);
     return;
@@ -47,12 +55,12 @@ void server()
     int flag = 1;
 	setsockopt(lsocket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag));
 
-    struct sockaddr_in svraddr;
-	svraddr.sin_family = AF_INET;
-	svraddr.sin_port = htons(7599);
-	svraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    struct sockaddr_in srvaddr;
+	srvaddr.sin_family = AF_INET;
+	srvaddr.sin_port = htons(7599);
+	srvaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
-    if(bind(lsocket, (struct sockaddr *)&svraddr, sizeof(struct sockaddr_in))) {
+    if(bind(lsocket, (struct sockaddr *)&srvaddr, sizeof(struct sockaddr_in))) {
 		std::cerr << "Socket Bind Error!" ;
         close(lsocket);
 		return;
@@ -72,7 +80,6 @@ void server()
     coroutine cs;
 
     while (true) {
-        sch_read(lsocket);
         accept_fd = accept(lsocket, &in_addr, &in_len); //非阻塞的Socket
         if (accept_fd == -1) {
             std::cerr << "Socket Accept Error!" ;

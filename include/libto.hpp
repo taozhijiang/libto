@@ -9,6 +9,11 @@
 #include "epoll.hpp"
 #include "thread.hpp"
 
+
+#include <sys/types.h>          /* See NOTES */
+#include <sys/socket.h>
+#include <arpa/inet.h>
+
 using coroutine = libto::Coroutine;
 using scheduler = libto::Scheduler;
 
@@ -22,7 +27,6 @@ namespace libto {
     extern void _sch_read(int fd);
     extern void _sch_write(int fd);
     extern void _sch_rdwr(int fd);
-
 }
 
 #define sch_yield do{  libto::Task_Ptr curr_ = libto::GetCurrentTaskOperation()->getCurrentTask(); \
@@ -38,5 +42,15 @@ namespace libto {
 #define sch_rdwr(fd)  libto::_sch_rdwr(fd)
 
 #define sch_sleep_ms(msec) libto::_sch_sleep_ms(msec)
+
+extern ssize_t read ( int fd, void *buf, size_t nbyte );
+extern ssize_t write ( int fd, const void *buf, size_t nbyte );
+extern ssize_t send (int socket, const void *buffer, size_t length, int flags);
+extern ssize_t recv (int socket, void *buffer, size_t length, int flags);
+
+extern ssize_t sendto (int socket, const void *message, size_t length,
+	                 int flags, const struct sockaddr *dest_addr, socklen_t dest_len);
+extern ssize_t recvfrom (int socket, void *buffer, size_t length,
+	                 int flags, struct sockaddr *address, socklen_t *address_len);
 
 #endif // _LIBTO_HPP_
