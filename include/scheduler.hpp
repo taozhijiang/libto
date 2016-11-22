@@ -166,8 +166,8 @@ public:
                 }
             }
 
-            if (!real_do) {
-                ::usleep(50*1000); //50ms
+            if (!real_do && task_list_.empty()) {
+                ::usleep(20*1000); //20ms
             }
         }
 
@@ -222,8 +222,9 @@ public:
     {
         std::size_t ret = 0;
 
-        if(traverseEvent(fd_coll, ms) && !fd_coll.empty())
-        {
+        if(traverseEvent(fd_coll, ms)) {
+            assert(!fd_coll.empty());
+
             for (auto fd: fd_coll){
                 if (auto tk = task_blocking_list_[fd].lock())
                 {

@@ -126,7 +126,7 @@ public:
     {
         std::size_t total = 0;
         bool real_do = false;
-        Task_Ptr p_task;
+        std::size_t this_round = 0;
 
         // ATTENTION !!!
         // VERY IMPORTANT !!!!
@@ -144,16 +144,16 @@ public:
                 }
             }
 
-            p_task = task_list_.front();
+            this_round = 0;
             do {
                 if (do_run_one()) {
                     ++ total;
                     real_do = true;
                 }
-            } while (p_task != task_list_.front());
+            } while ( ++this_round < 20 );
 
             if (!real_do) {
-                usleep(50*1024);
+                usleep(10*1000);
             }
         }
 
@@ -165,13 +165,13 @@ public:
     {
         std::size_t total = 0;
         bool real_do = false;
-        Task_Ptr p_task;
 
         // ATTENTION !!!
         // VERY IMPORTANT !!!!
         GetThreadInstance().thread_ = this;
         BOOST_LOG_T(info) << "Worker Thread RunUntilNoTask() ..." ;
 
+        std::size_t this_round = 0;
         for (;;) {
             real_do = false;
 
@@ -181,16 +181,16 @@ public:
                    break;
             }
 
-            p_task = task_list_.front();
+            this_round = 0;
             do {
                 if (do_run_one()) {
                     ++ total;
                     real_do = true;
                 }
-            } while ( p_task != task_list_.front() );
+            } while ( ++this_round < 20 );
 
             if (!real_do) {
-                usleep(50*1024);
+                usleep(10*1000);
             }
         }
 
@@ -203,8 +203,9 @@ public:
     {
         std::size_t ret = 0;
 
-        if(traverseEvent(fd_coll, ms) && !fd_coll.empty())
+        if(traverseEvent(fd_coll, ms))
         {
+            assert(!fd_coll.empty());
             boost::lock_guard<boost::mutex> task_lock(task_mutex_);
             for (auto fd: fd_coll) {
                 if (auto tk = task_blocking_list_[fd].lock())

@@ -57,16 +57,20 @@ public:
     }
 
     // -1 block for ever
+    // collected something, return true
     bool traverseEvent(std::vector<int>& fds, int ms){
-        int ret = 0;
-
-        ret = epoll_wait(event_fd_, events_, max_events_, ms);
-        if (ret == -1)
+        if (event_fd_ == -1 || !events_)
             return false;
+
+        int ret  = epoll_wait(event_fd_, events_, max_events_, ms);
+        if (ret == -1) {
+            BOOST_LOG_T(debug) << "epoll_wait error: " << ms << ", ret=" << ret;
+            return false;
+        }
 
         fds.clear();
         if (ret == 0)
-            return true;
+            return false;
 
         for (int i=0; i<ret; ++i)
             fds.push_back(events_[i].data.fd);
