@@ -17,11 +17,15 @@
 using coroutine = libto::Coroutine;
 using scheduler = libto::Scheduler;
 
+using taskStat = libto::TaskStat;
+
 namespace libto {
+
     extern TaskOperation* GetCurrentTaskOperation();
     extern Epoll* GetCurrentEpoll();
 
     extern void _sch_yield();
+    extern void _sch_yield_stat(TaskStat stat);
     extern int _timer_prep(std::size_t msec, bool forever);
     extern bool _sch_sleep_ms(std::size_t msec);
     extern void _sch_read(int fd);
@@ -32,6 +36,8 @@ namespace libto {
 #define sch_yield do{  libto::Task_Ptr curr_ = libto::GetCurrentTaskOperation()->getCurrentTask(); \
                         if(curr_) curr_->swapOut(); \
                    } while(0);
+
+#define sch_yield_stat(x) libto::_sch_yield_stat(x)
 
 #define RunTask          do{ libto::GetCurrentTaskOperation()->RunTask(); } while(0);
 #define RunUntilNoTask   do{ libto::GetCurrentTaskOperation()->RunUntilNoTask(); } while(0);

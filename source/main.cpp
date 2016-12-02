@@ -46,6 +46,11 @@ void respon_func(int sock){
     #endif
 
     close(sock);
+
+    // while (true) {
+    //    sch_yield_stat(taskStat::TASK_STOPPED);
+    // }
+
     return;
 }
 

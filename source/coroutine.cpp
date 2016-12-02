@@ -59,6 +59,14 @@ namespace libto {
             curr_->swapOut();
     }
 
+    void _sch_yield_stat(TaskStat stat) {
+        Task_Ptr curr_ = GetCurrentTaskOperation()->getCurrentTask();
+        if(curr_) {
+            curr_->setTaskStat(stat);
+            curr_->swapOut();
+        }
+    }
+
     // 依据定时器的原理实现
     bool _sch_sleep_ms(std::size_t msec) {
         int timerfd;
