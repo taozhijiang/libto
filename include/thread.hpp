@@ -13,7 +13,24 @@
 
 #include "epoll.hpp"
 
+#define LIBTO_SIG_BLOCK(x) do { \
+    sigset_t set; \
+    ::sigemptyset(&set); \
+    ::sigaddset(&set, x); \
+    ::sigprocmask(SIG_BLOCK, &set, NULL); \
+} while(0)
+
+#define LIBTO_SIG_UNBLOCK(x) do { \
+    sigset_t set; \
+    ::sigemptyset(&set); \
+    ::sigaddset(&set, x); \
+    ::sigprocmask(SIG_UNBLOCK, &set, NULL); \
+} while(0)
+
+
 namespace libto {
+
+extern volatile bool libto_terminate;
 
 // Can be reference by through Scheduler::getThreadInstance
 class Thread;
@@ -148,9 +165,7 @@ public:
 
     std::size_t RunTask() override
     {
-        // ATTENTION !!!
-        // VERY IMPORTANT !!!!
-        GetThreadInstance().thread_ = this;
+        pre_thread_work();
 
         BOOST_LOG_T(info) << "Worker Thread RunTask() ..." ;
         std::size_t total = do_run_task(false);
@@ -161,9 +176,7 @@ public:
 
     std::size_t RunUntilNoTask() override
     {
-        // ATTENTION !!!
-        // VERY IMPORTANT !!!!
-        GetThreadInstance().thread_ = this;
+        pre_thread_work();
 
         BOOST_LOG_T(info) << "Worker Thread RunUntilNoTask() ..." ;
         std::size_t total = do_run_task(true);
@@ -243,6 +256,9 @@ private:
                 }
             } while ( ++this_round < 20 );
 
+            if (libto_terminate)
+                break;
+
             if(traverseTaskEvents(0))
                 real_do = true;
 
@@ -252,6 +268,18 @@ private:
         }
 
         return total;
+    }
+
+    void pre_thread_work() {
+
+        // ATTENTION !!!
+        // VERY IMPORTANT !!!!
+        GetThreadInstance().thread_ = this;
+
+        LIBTO_SIG_BLOCK(SIGUSR1);
+        LIBTO_SIG_BLOCK(SIGTERM);
+
+        return;
     }
 
 private:

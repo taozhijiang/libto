@@ -17,6 +17,8 @@
 
 namespace libto {
 
+extern volatile bool libto_terminate;
+
 class Scheduler: public boost::noncopyable, public TaskOperation, public Epoll
 {
 public:
@@ -200,7 +202,8 @@ public:
         return !!current_task_;
     }
 
-    void showStat(){
+    void showStat() {
+
         BOOST_LOG_T(info) << "libto stat display: " ;
         BOOST_LOG_T(info) << "current coroutine uuid: " << Task::currentTaskUUID() ;
         std::cerr << "current coroutine uuid: " << Task::currentTaskUUID() << endl;
@@ -243,6 +246,9 @@ private:
                 }
             } while ( ++this_round < 20 );
 
+            if (libto_terminate)
+                break;
+
             if(traverseTaskEvents(0))
                 real_do = true;
 
@@ -267,7 +273,7 @@ private:
 
     Task_Ptr                current_task_;
     boost::thread_group     thread_group_;
-    std::vector<Thread_Ptr> thread_list_; //默认在main thread中执行的协程
+    std::vector<Thread_Ptr> thread_list_;
 };
 
 }

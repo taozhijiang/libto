@@ -25,18 +25,39 @@ namespace libto {
     void boost_log_init(const string filename_prefix);
     void backtrace_init();
 
-    void signal_handler(int ) {
+    /**
+     * Used to terminate RunTask Loop
+     */
+    volatile bool libto_terminate = false;
 
-        Scheduler::getInstance().showStat();
+    void signal_handler(int signo) {
 
+        if ( signo == SIGUSR1 ) {
+            Scheduler::getInstance().showStat();
+            return;
+        }
+
+        if ( signo == SIGTERM ) {
+            libto_terminate = true;
+            ::sleep(2);
+            Scheduler::getInstance().showStat();
+            return;
+        }
     }
 
     // todo:
     // registerable init hook
+
+    /**
+     * 这些信号都应该被主线程处理，所以按照之前pthread的手册描述，
+     * 应当在子线程中Block住这些信号。虽然我还没看boost_thread的手册，应该差不多吧
+     * */
+
     bool libto_init(){
         // ignore sigpipe
         ::signal(SIGPIPE, SIG_IGN);
         ::signal(SIGUSR1, signal_handler);
+        ::signal(SIGTERM, signal_handler);
 
         boost_log_init("libto_running");
         backtrace_init();
