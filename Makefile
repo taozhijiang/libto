@@ -11,7 +11,7 @@ SRC_DIRS = ./source
 EXTRAFLAGS =  -I/home/user/MacOS/ReadTheCode/boost/installdir/include -I./include/ -L/home/user/MacOS/ReadTheCode/boost/installdir/lib
 EXTRAFLAGS += -DBOOST_LOG_DYN_LINK 
 EXTRAFLAGS += -lboost_system -lboost_context -lboost_thread -lboost_date_time -lboost_log -lboost_log_setup 
-EXTRAFLAGS += -lpthread
+EXTRAFLAGS += -lpthread -ldl -fPIC
 EXTRAFLAGS += -Wall -Wextra -march=native
 
 OBJDIR = ./obj

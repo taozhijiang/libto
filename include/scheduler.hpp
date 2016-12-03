@@ -32,12 +32,14 @@ public:
     }
 
     void addTask(const Task_Ptr& p_task, TaskStat stat = TaskStat::TASK_RUNNING) override {
+        assert(stat == TaskStat::TASK_RUNNING);
+
         p_task->setTaskStat(stat);
         task_list_.push_back(p_task);
         return;
     }
 
-    // task_blocking_list_ 中是弱引用
+    // 基本都是链表的头部，所以效率应该不会差
     void removeTask(const Task_Ptr& p_task) override {
         task_list_.remove(p_task);
         return;
@@ -45,11 +47,13 @@ public:
 
     void blockTask(int fd, const Task_Ptr& p_task) override {
         p_task->setTaskStat(TaskStat::TASK_BLOCKING);
+        task_list_.remove(p_task);
         task_blocking_list_[fd] = p_task;
     }
 
     void resumeTask(const Task_Ptr& p_task) override {
         p_task->setTaskStat(TaskStat::TASK_RUNNING);
+        task_list_.push_back(p_task);
     }
 
     void removeBlockingFd(int fd) override {
@@ -64,7 +68,7 @@ public:
 
         if (!thread_list_[dispatch])
         {
-            Thread_Ptr th = std::make_shared<Thread>();
+            Thread_Ptr th = std::make_shared<Thread>(dispatch);
             thread_group_.create_thread(boost::bind(&Thread::RunTask, th));
             thread_list_[dispatch] = th;
             BOOST_LOG_T(debug) << "Create Thread Index @: " << dispatch;
@@ -80,7 +84,7 @@ public:
 
         if (!thread_list_[dispatch])
         {
-            Thread_Ptr th = std::make_shared<Thread>();
+            Thread_Ptr th = std::make_shared<Thread>(dispatch);
             thread_group_.create_thread(boost::bind(&Thread::RunTask, th));
             thread_list_[dispatch] = th;
             BOOST_LOG_T(debug) << "Create Thread Index @: " << dispatch;
@@ -101,10 +105,7 @@ public:
         task_list_.pop_front();
 
         // move front to tail
-        if (ptr->getTaskStat() != TaskStat::TASK_RUNNING) {
-            task_list_.push_back(ptr);
-            return false;
-        }
+        assert(ptr->getTaskStat() == TaskStat::TASK_RUNNING);
 
         current_task_ = ptr;
         ptr->swapIn();
@@ -115,8 +116,20 @@ public:
             // Task会被自动析构，后续考虑搞个对象缓存列表
             BOOST_LOG_T(debug) << "Job is finished with " << ptr->t_id_ ;
         }
-        else{
-            task_list_.push_back(ptr);
+        else
+        {
+            if (ptr->getTaskStat() == TaskStat::TASK_RUNNING) {
+                task_list_.push_back(ptr);
+            }
+            // if blocking case, already added to task_blocking_list_
+            else if (ptr->getTaskStat() == TaskStat::TASK_BLOCKING)
+            {
+                /* Noop */;
+            }
+            else{
+                BOOST_LOG_T(error) << "Error task stat: " << static_cast<int>(ptr->getTaskStat()) << std::endl;
+                ::abort();
+            }
         }
 
         return true;
@@ -128,113 +141,47 @@ public:
      */
     std::size_t RunTask() override
     {
-        std::size_t total = 0;
-        std::size_t n = 0;
-        bool real_do = false;
-        std::vector<int> fd_coll;
-        Task_Ptr p_task;
-
         BOOST_LOG_T(info) << "Main Thread RunTask() ...";
-
-        for (;;) {
-            n = 0;           //切换协程次数
-            real_do = false; //是否实际处理事件
-
-            // 有empty()这种情况发生，此时主线程主要做工作线程的
-            // 事件侦听的操作
-            if (!task_list_.empty())
-            {
-                p_task = task_list_.front();
-                do {
-                    if (do_run_one()){
-                        ++ total;
-                        real_do = true;
-                    }
-                } while ( (n++ < 20) && (p_task != task_list_.front()));
-            }
-
-            // Main Thread Check
-            traverseTaskEvents(fd_coll, 0);
-
-            // Other Thread Check
-            for (auto& ithread: thread_list_){
-                if (ithread){
-                    // immediately
-                   if( ithread->traverseTaskEvents(fd_coll) ){
-                       real_do = true;
-                   }
-                }
-            }
-
-            if (!real_do && task_list_.empty()) {
-                ::usleep(20*1000); //20ms
-            }
-        }
-
+        std::size_t total = do_run_task(false);
         BOOST_LOG_T(info) << "Already run " << total << " serivces... " ;
+
         return total;
     }
 
     // RunUntilNoTask() 不会处理其他线程的事件，此处需要注意
     std::size_t RunUntilNoTask() override
     {
-        std::size_t total = 0;
-        std::size_t n = 0;
-        bool real_do = false;
-        std::vector<int> fd_coll;
-        Task_Ptr p_task;
-
         BOOST_LOG_T(debug) << "Main Thread RunUntilNoTask() ...";
-
         if (!thread_list_.empty()) {
             BOOST_LOG_T(error) << "RunUntilNoTask will not handle thread events, do not use these!" << endl;
             ::abort();
         }
 
-        for (;;) {
-            n = 0;           //切换协程次数
-            real_do = false; //是否实际处理事件
-
-            if (task_list_.empty())
-               break;
-
-            p_task = task_list_.front();
-            do {
-                if (do_run_one()){
-                    ++ total;
-                    real_do = true;
-                }
-            } while ( (n++ < 20) && (p_task != task_list_.front()));
-
-            // Main Thread Check
-            traverseTaskEvents(fd_coll, 0);
-
-            if (!real_do) {
-                ::usleep(50*1000); //50ms
-            }
-        }
-
+        std::size_t total = do_run_task(true);
         BOOST_LOG_T(info) << "Already run " << total << " serivces... " ;
-        return n;
+
+        return total;
     }
 
-    std::size_t traverseTaskEvents(std::vector<int>& fd_coll, int ms=50) override
+    // scheduler主线程不会有竞争条件，所以不用考虑优化
+    std::size_t traverseTaskEvents( int ms=50) override
     {
+        std::vector<int> fd_coll;
         std::size_t ret = 0;
 
         if(traverseEvent(fd_coll, ms)) {
+
             assert(!fd_coll.empty());
+            for (auto fd: fd_coll) {
+                ++ ret;
+                auto tk = task_blocking_list_[fd];
+                task_blocking_list_.erase(fd);
 
-            for (auto fd: fd_coll){
-                if (auto tk = task_blocking_list_[fd].lock())
-                {
-                    ++ ret;
-                    resumeTask(tk);
-                }
+                tk->setTaskStat(TaskStat::TASK_RUNNING);
+                task_list_.push_back(task_blocking_list_[fd]);
 
-                // 目前只以oneshot的方式使用，后续待优化
+                // 目前只以oneshot的方式使用(libco也是这么做的)
                 delEvent(fd);
-                removeBlockingFd(fd);
             }
         }
 
@@ -276,18 +223,50 @@ public:
     }
 
 private:
+    size_t do_run_task(bool until_break) {
+
+        std::size_t total = 0;
+        std::size_t this_round = 0;
+        bool real_do = false;
+
+        for (;;) {
+            real_do = false;
+
+            if (until_break && task_list_.empty() && task_blocking_list_.empty())
+               break;
+
+            this_round = 0;
+            do {
+                if (do_run_one()) {
+                    ++ total;
+                    real_do = true;
+                }
+            } while ( ++this_round < 20 );
+
+            if(traverseTaskEvents(0))
+                real_do = true;
+
+            if (!real_do) {
+                usleep(10*1000);
+            }
+        }
+
+        return total;
+    }
+
     Scheduler(): Scheduler(0)
     {}
 
-    Scheduler(std::size_t max_event):
+    explicit Scheduler(std::size_t max_event):
+        TaskOperation(-1),
         Epoll(max_event)
     {
         current_task_ = nullptr;
         GetThreadInstance().thread_ = nullptr;
     }
 
-    Task_Ptr                 current_task_;
-    boost::thread_group      thread_group_;
+    Task_Ptr                current_task_;
+    boost::thread_group     thread_group_;
     std::vector<Thread_Ptr> thread_list_; //默认在main thread中执行的协程
 };
 

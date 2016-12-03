@@ -3,7 +3,10 @@
 #include <sys/types.h>          /* See NOTES */
 #include <string>
 
+#include <boost/context/stack_traits.hpp>
+
 static std::size_t thread_idx = 0;
+using boost::context::stack_traits;
 
 void respon_func(int sock){
     char buf[512];
@@ -62,7 +65,7 @@ void server()
 
     struct sockaddr_in srvaddr;
 	srvaddr.sin_family = AF_INET;
-	srvaddr.sin_port = htons(7599);
+	srvaddr.sin_port = htons(7999);
 	srvaddr.sin_addr.s_addr = htonl(INADDR_ANY);
 
     if(bind(lsocket, (struct sockaddr *)&srvaddr, sizeof(struct sockaddr_in))) {
@@ -71,11 +74,13 @@ void server()
 		return;
 	}
 
-    if(listen(lsocket, 20)){
+    if(listen(lsocket, 200)){
 		std::cerr << "Socket Listen Error!" ;
         close(lsocket);
 		return;
 	}
+
+    std::cerr << "Server Listen at: 0.0.0.0: " << ntohs(srvaddr.sin_port) << std::endl;
 
     libto::st_make_nonblock(lsocket);
 
@@ -103,9 +108,23 @@ extern bool libto_init();
 
 }
 
+void stack_info(){
+    std::cout << "!!! stack_traits info !!!" << std::endl;
+
+    std::cout << "is_unbounded: " << stack_traits::is_unbounded() << std::endl;
+    std::cout << "page_size: " << stack_traits::page_size() << std::endl;
+    std::cout << "default_size: " << stack_traits::default_size() << std::endl;
+    std::cout << "minimum_size: " << stack_traits::minimum_size() << std::endl;
+    if (!stack_traits::is_unbounded())
+        std::cout << "maximum_size: " << stack_traits::maximum_size() << std::endl;
+
+    return;
+}
+
 int main(int argc, char* argv[])
 {
     libto::libto_init();
+    stack_info();
 
 	coroutine c;
     c.bind_proc(server, 0);

@@ -28,7 +28,7 @@ class Thread;
 
 enum class TaskStat
 {
-    TASK_INITIALIZE,
+    TASK_INITIALIZE = 1,
     TASK_RUNNING,
     TASK_BLOCKING,
     TASK_STOPPED,
@@ -38,8 +38,9 @@ class Task {
     friend class TaskOperation;
 
 public:
-    Task(TaskFunc const& fn):
+    Task(TaskFunc const& fn, int thread_idx = -1):
     t_id_(task_uuid++),
+    thread_idx_(thread_idx),
     task_stat_(TaskStat::TASK_INITIALIZE),
     func_(fn),
     context_([this] {Task_Callback();})
@@ -84,6 +85,7 @@ public:
 
 public:
     const uint64_t t_id_;
+    int thread_idx_;   // -1 for main
 
 protected:
     static uint64_t task_uuid;
@@ -96,7 +98,8 @@ protected:
 
 class TaskOperation {
 public:
-    TaskOperation():
+    explicit TaskOperation(int thread_idx):
+    thread_idx_(thread_idx),
     task_list_() {}
 
     void createTask(TaskFunc const& func) {
@@ -119,7 +122,7 @@ public:
                     read(timerfd, null_read, 8);
                     func();
                 }
-            }));
+            }, thread_idx_ ));
 
             addTask(p_task);
         }
@@ -129,7 +132,7 @@ public:
                     _sch_read(timerfd);
                     read(timerfd, null_read, 8);
                     func();
-            }));
+            }, thread_idx_ ));
 
             addTask(p_task);
         }
@@ -150,18 +153,20 @@ public:
     virtual std::size_t RunTask() = 0;
 
     // ms = -1, forever
-    virtual std::size_t traverseTaskEvents(std::vector<int>& fd_coll, int ms=0) = 0;
+    virtual std::size_t traverseTaskEvents(int ms=0) = 0;
 
     virtual ~TaskOperation() = default;
 
     virtual Task_Ptr getCurrentTask() const = 0;
     virtual bool isInCoroutine() const = 0;
 
-protected:
-    std::list<Task_Ptr> task_list_;
+public:
+    const int               thread_idx_ = -1;  // -1 for main thread
 
+protected:
+    std::list<Task_Ptr>     task_list_;
     // IO 等待的列表，socket/fd
-    std::map<int, Task_Weak> task_blocking_list_;
+    std::map<int, Task_Ptr> task_blocking_list_;
 
     // 空闲的Task对象缓存队列
     std::vector<Task_Ptr>    task_obj_cache_;
